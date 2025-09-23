@@ -1,39 +1,51 @@
 <script lang="ts">
-  import AuthShell from '$lib/components/AuthShell.svelte';
-  import OAuthButton from '$lib/components/OAuthButton.svelte';
-  import Divider from '$lib/components/ui/Divider.svelte';
-  import TextInput from '$lib/components/ui/TextInput.svelte';
-  import Checkbox from '$lib/components/ui/Checkbox.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
+	import AuthFrame from "$lib/components/auth/AuthFrame.svelte";
 
-  let name = '';
-  let username = '';
   let email = '';
   let password = '';
-  let agree = false;
+  let confirm = '';
+  const submit = () => {};
 </script>
 
-<AuthShell title="Welcome to Nexlab" subtitle="Register now and start your adventure.">
-  <div class="space-y-4">
-    <OAuthButton provider="google" label="Register with Google" />
-    <OAuthButton provider="facebook" label="Register with Facebook" />
-    <Divider />
+<AuthFrame
+  title="Create your account"
+  description="Join us in a minute. Just a few details to get started."
+>
+  <form class="space-y-4" on:submit|preventDefault={submit}>
+    <label class="block">
+      <span class="mb-2 block text-sm font-medium text-zinc-700">Email</span>
+      <input
+        class="block w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+        type="email" bind:value={email} placeholder="you@example.com" required
+      />
+    </label>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <TextInput id="name" label="Name" placeholder="Type name…" bind:value={name} />
-      <TextInput id="username" label="Username" placeholder="Type username…" bind:value={username} />
-    </div>
+    <label class="block">
+      <span class="mb-2 block text-sm font-medium text-zinc-700">Password</span>
+      <input
+        class="block w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+        type="password" bind:value={password} placeholder="Type password…" required minlength="8"
+      />
+    </label>
 
-    <TextInput id="reg-email" label="Email" type="email" placeholder="Type email…" bind:value={email} />
-    <TextInput id="reg-password" label="Password" type="password" placeholder="Type password…" bind:value={password} />
+    <label class="block">
+      <span class="mb-2 block text-sm font-medium text-zinc-700">Confirm password</span>
+      <input
+        class="block w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+        type="password" bind:value={confirm} placeholder="Re-type password…" required minlength="8"
+      />
+    </label>
 
-    <Checkbox id="agree" bind:checked={agree} label={'I agree to all the <a class="text-indigo-600 underline">Term &amp; Privacy Policy</a>'} />
+    <button
+      type="submit"
+      class="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
+    >
+      Create account
+    </button>
 
-    <Button variant="primary">Register</Button>
-
-    <p class="text-center text-sm text-zinc-500">
+    <p class="text-center text-xs text-zinc-600">
       Already have an account?
-      <a class="text-indigo-600 hover:underline" href="/auth/login">Sign In</a>
+      <a href="/auth/login" class="font-medium text-indigo-600 hover:underline">Log in</a>
     </p>
-  </div>
-</AuthShell>
+  </form>
+</AuthFrame>
