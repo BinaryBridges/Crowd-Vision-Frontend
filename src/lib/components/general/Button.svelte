@@ -15,14 +15,12 @@
 		'border border-[var(--color-black-100)] ' +
 		'py-3 pr-4 pl-[14px] font-semibold text-[14px] cursor-pointer self-stretch ' +
 		'transition-[background-color,border-color,color] duration-150 ' +
-		'focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 ' +
 		'disabled:opacity-[0.65] disabled:cursor-not-allowed';
 
 	const variants: Record<Variant, string> = {
 		primary:
 			'bg-[var(--color-black-600)] text-[var(--color-white)] ' +
 			'enabled:hover:bg-[var(--color-black-400)]',
-
 		outline:
 			'bg-[var(--color-white)] text-[var(--color-black-600)] ' +
 			'enabled:hover:border-[var(--color-black-700)]'
@@ -31,7 +29,7 @@
 
 <button
 	{type}
-	class={`${base} ${variants[variant]} ${full ? 'w-full' : ''}`}
+	class={`${base} ${variants[variant]} ${full ? 'w-full' : ''} focus-ring`}
 	aria-label={ariaLabel}
 	aria-busy={loading}
 	disabled={isDisabled}

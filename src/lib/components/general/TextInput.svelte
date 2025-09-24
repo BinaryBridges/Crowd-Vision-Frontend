@@ -12,8 +12,6 @@
 	export let full = false;
 	export let ariaLabel: string | undefined = undefined;
 	export let error: string | undefined = undefined;
-
-	/** Set these to true when you pass content into the corresponding slot */
 	export let leading = false;
 	export let trailing = false;
 
@@ -25,7 +23,7 @@
 		'rounded-[var(--radius-10)] py-3 pr-[14px] pl-[14px] ' +
 		'bg-[var(--color-white)] border border-[var(--color-black-50)]';
 
-	const focusClass = 'focus-within:border-[var(--color-purple-500)]';
+	const focusClass = 'focus-within-ring';
 
 	$: shellVariant = error
 		? 'bg-[var(--color-red-50)] border-[var(--color-red-500)]'
@@ -43,8 +41,7 @@
 			? 'text-[var(--color-black-600)] font-medium'
 			: 'text-[var(--color-black-400)]';
 
-	const iconBox = 'shrink-0 flex items-center justify-center size-5 overflow-hidden';
-
+	const iconBox = 'shrink-0 flex items-center justify-center size-5';
 	const errorBase = 'mt-[4px] text-[12px] font-normal text-[var(--color-red-500)]';
 </script>
 
