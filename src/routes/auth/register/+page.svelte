@@ -67,9 +67,15 @@
 	};
 </script>
 
-<AuthLayout title="Welcome to Crowd Vision" description="Register now and start your adventure.">
+<AuthLayout
+  title="Welcome to Crowd Vision"
+  description="Register now and start your adventure."
+  footerText="Already have an account?"
+  footerLinkText="Sign In"
+  footerHref="/login"
+>
 	<form
-		class="flex flex-col gap-2"
+		class="flex flex-col gap-3"
 		novalidate
 		on:invalid|preventDefault
 		on:submit|preventDefault={validateAndSubmit}
@@ -84,7 +90,6 @@
 			full
 			on:input={onNameInput}
 		/>
-
 		<TextInput
 			id="email"
 			label="Email"
@@ -95,7 +100,6 @@
 			full
 			on:input={onEmailInput}
 		/>
-
 		<TextInput
 			id="password"
 			label="Password"
@@ -121,7 +125,6 @@
 				{/if}
 			</button>
 		</TextInput>
-
 		<TextInput
 			id="confirm"
 			label="Confirm password"
@@ -147,8 +150,7 @@
 				{/if}
 			</button>
 		</TextInput>
-
-		<Checkbox id="tos" bind:checked={agreed}>
+		<Checkbox id="tos" bind:checked={agreed} className="py-2">
 			I agree to all the
 			<span class="font-semibold text-[var(--color-black-600)]"> Term </span>
 			&amp;
@@ -158,9 +160,7 @@
 		<Button variant="primary" full type="submit" ariaLabel="Register" disabled={!canSubmit}>
 			Register
 		</Button>
-
 		<Divider text="or" />
-
 		<Button variant="outline" full type="button" ariaLabel="Register with Google">
 			<span slot="icon"><GoogleIcon className="size-5" /></span>
 			Register with Google
