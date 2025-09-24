@@ -5,6 +5,7 @@
 	import TextInput from '$lib/components/general/TextInput.svelte';
 	import EyeIcon from '$lib/icons/EyeIcon.svelte';
 	import EyeOffIcon from '$lib/icons/EyeOffIcon.svelte';
+	import Divider from '$lib/components/general/Divider.svelte';
 
 	let fullName = '';
 	let email = '';
@@ -71,7 +72,7 @@
 
 <AuthLayout title="Welcome to Crowd Vision" description="Register now and start your adventure.">
 	<form
-		class="space-y-4"
+		class="flex flex-col gap-2"
 		novalidate
 		on:invalid|preventDefault
 		on:submit|preventDefault={validateAndSubmit}
@@ -153,7 +154,7 @@
 		<Button variant="primary" full type="submit" ariaLabel="Register" disabled={!canSubmit}>
 			Register
 		</Button>
-
+		<Divider text="or" />
 		<Button variant="outline" full type="button" ariaLabel="Register with Google">
 			<span slot="icon"><GoogleIcon className="size-5" /></span>
 			Register with Google
