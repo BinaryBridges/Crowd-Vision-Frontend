@@ -1,24 +1,85 @@
 <script lang="ts">
+	type InputType = 'text' | 'email' | 'password' | 'number' | 'search';
+
 	export let id = '';
-	export let type: string = 'text';
-	export let label = '';
+	export let type: InputType = 'text';
+	export let label: string | undefined = undefined;
 	export let placeholder = '';
-	export let required = false;
 	export let value: string = '';
 	export let name: string | undefined = undefined;
+	export let required = false;
+	export let disabled = false;
+	export let full = false;
+	export let ariaLabel: string | undefined = undefined;
+	export let error: string | undefined = undefined;
+
+	/** Set these to true when you pass content into the corresponding slot */
+	export let leading = false;
+	export let trailing = false;
+
+	const fieldStack = 'flex flex-col';
+	const labelBase = 'text-[14px] font-medium text-[var(--color-black-400)] mb-[6px]';
+
+	const shellBase =
+		'flex items-center justify-between gap-[4px] self-stretch ' +
+		'rounded-[var(--radius-10)] py-3 pr-[14px] pl-[14px] ' +
+		'bg-[var(--color-white)] border border-[var(--color-black-50)]';
+
+	const focusClass = 'focus-within:border-[var(--color-purple-500)]';
+
+	$: shellVariant = error
+		? 'bg-[var(--color-red-50)] border-[var(--color-red-500)]'
+		: disabled
+			? 'bg-[var(--color-grey-50)] border-[var(--color-grey-50)]'
+			: '';
+
+	const inputBase =
+		'flex-1 min-w-0 bg-transparent outline-none border-0 ' +
+		'text-[14px] leading-[20px] font-normal placeholder-[var(--color-black-300)] ' +
+		'disabled:cursor-not-allowed';
+
+	$: textState =
+		value && value.trim().length > 0
+			? 'text-[var(--color-black-600)] font-medium'
+			: 'text-[var(--color-black-400)]';
+
+	const iconBox = 'shrink-0 flex items-center justify-center size-5 overflow-hidden';
+
+	const errorBase = 'mt-[4px] text-[12px] font-normal text-[var(--color-red-500)]';
 </script>
 
-<label class="block">
+<div class={`${fieldStack} ${full ? 'w-full' : ''}`}>
 	{#if label}
-		<span class="mb-2 block text-sm font-medium text-zinc-700">{label}</span>
+		<label for={id} class={labelBase}>{label}</label>
 	{/if}
-	<input
-		{id}
-		{name}
-		bind:value
-		{type}
-		{required}
-		{placeholder}
-		class="block w-full rounded-xl border-zinc-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-	/>
-</label>
+
+	<div
+		class={`${shellBase} ${!disabled && !error ? focusClass : ''} ${shellVariant}`}
+		aria-label={ariaLabel}
+	>
+		{#if leading}
+			<div class={iconBox}><slot name="leading" /></div>
+		{/if}
+
+		<input
+			{id}
+			{name}
+			bind:value
+			{type}
+			{placeholder}
+			{required}
+			{disabled}
+			aria-invalid={!!error}
+			aria-describedby={error ? `${id}-error` : undefined}
+			class={`${inputBase} ${textState}`}
+		/>
+
+		{#if trailing}
+			<div class={iconBox}><slot name="trailing" /></div>
+		{/if}
+	</div>
+
+	{#if error}
+		<p id={`${id}-error`} class={errorBase}>{error}</p>
+	{/if}
+</div>
