@@ -1,37 +1,43 @@
 <script lang="ts">
-  export let variant: 'primary' | 'outline' | 'ghost' = 'primary';
-  export let size: 'sm' | 'md' | 'lg' = 'md';
-  export let full = false;
-  export let loading = false;
-  export let disabled = false;
-  export let type: 'button' | 'submit' | 'reset' = 'button';
-  // Optional aria label for icon-only cases
-  export let ariaLabel: string | undefined;
+	type Variant = 'primary' | 'outline';
 
-  $: isDisabled = disabled || loading;
+	export let variant: Variant = 'primary';
+	export let full = false;
+	export let loading = false;
+	export let disabled = false;
+	export let type: 'button' | 'submit' | 'reset' = 'button';
+	export let ariaLabel: string | undefined;
 
-  const byVariant: Record<typeof variant, string> = {
-    primary:
-      'bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-300 disabled:text-zinc-500',
-    outline:
-      'border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 disabled:opacity-60',
-    ghost:
-      'bg-transparent text-zinc-900 hover:bg-zinc-100 disabled:opacity-60'
-  };
+	$: isDisabled = disabled || loading;
 
-  const bySize: Record<typeof size, string> = {
-    sm: 'h-9 px-3 text-sm gap-2 rounded-lg',
-    md: 'h-11 px-4 text-sm gap-3 rounded-xl',
-    lg: 'h-12 px-5 text-base gap-3.5 rounded-xl'
-  };
+	const base =
+		'inline-flex items-center justify-center gap-[6px] rounded-[var(--radius-10)] ' +
+		'border border-[var(--color-black-100)] ' +
+		'py-3 pr-4 pl-[14px] font-semibold text-[14px] cursor-pointer self-stretch ' +
+		'transition-[background-color,border-color,color] duration-150 ' +
+		'focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 ' +
+		'disabled:opacity-[0.65] disabled:cursor-not-allowed';
+
+	const variants: Record<Variant, string> = {
+		primary:
+			'bg-[var(--color-black-600)] text-[var(--color-white)] ' +
+			'enabled:hover:bg-[var(--color-black-400)]',
+
+		outline:
+			'bg-[var(--color-white)] text-[var(--color-black-600)] ' +
+			'enabled:hover:border-[var(--color-black-700)]'
+	};
 </script>
+
 <button
-  type={type}
-  class={`inline-flex items-center justify-center ${bySize[size]} ${byVariant[variant]} ${full ? 'w-full' : ''} `}
-  aria-label={ariaLabel}
-  disabled={isDisabled}
+	{type}
+	class={`${base} ${variants[variant]} ${full ? 'w-full' : ''}`}
+	aria-label={ariaLabel}
+	aria-busy={loading}
+	disabled={isDisabled}
 >
-  <slot name="icon" />
-  <span class="whitespace-nowrap">{#if loading}…{/if}<slot /></span>
-  <slot name="right" />
+	<slot name="icon" />
+	<span class="whitespace-nowrap"
+		>{#if loading}…{/if}<slot /></span
+	>
 </button>

@@ -1,5 +1,18 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
-  --color-brand: #F98098;
+	/* Colors */
+	--color-grey-25: #f8f8fa;
+	--color-black-700: #10121b;
+	--color-black-600: #151823;
+	--color-black-400: #454851;
+	--color-black-300: #64666e;
+	--color-black-100: #b7b8bc;
+	--color-white: #fff;
+
+	/* Borders / Radius */
+	--radius-20: 20px;
+	--radius-10: 10px;
+
+	--border-gradient-gray-vertical: rgba(232, 232, 233, 0.65);
 }
