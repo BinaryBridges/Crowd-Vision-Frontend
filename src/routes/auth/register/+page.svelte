@@ -45,7 +45,7 @@
 
     <p class="text-center text-xs text-zinc-600">
       Already have an account?
-      <a href="/auth/login" class="font-medium text-indigo-600 hover:underline">Log in</a>
+      <a href="/auth/login" class="font-medium text-brand hover:underline">Log in</a>
     </p>
   </form>
 </AuthFrame>

@@ -5,10 +5,10 @@
 
 <section class="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
   {#if title}
-    <h1 class="text-center text-xl font-semibold">{title}</h1>
+    <h1 class="text-center text-md font-semibold text-black-600">{title}</h1>
   {/if}
   {#if description}
-    <p class="mt-2 text-center text-sm text-zinc-600">{description}</p>
+    <p class="mt-2 text-center text-sm text-black-300">{description}</p>
   {/if}
 
   <div class="mt-6">
