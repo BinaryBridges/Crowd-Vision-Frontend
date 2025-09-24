@@ -1,2 +1,37 @@
 @import 'tailwindcss';
-@plugin '@tailwindcss/forms';
+
+@theme {
+	/* Colors */
+	--color-purple-500: #8f45e8;
+
+	--color-grey-200: #bababc;
+	--color-grey-50: #f0f0f0;
+	--color-grey-25: #f8f8fa;
+
+	--color-red-500: #e52b16;
+	--color-red-50: #fceae8;
+
+	--color-black-700: #10121b;
+	--color-black-600: #151823;
+	--color-black-400: #454851;
+	--color-black-300: #64666e;
+	--color-black-100: #b7b8bc;
+	--color-black-50: #e8e8e9;
+
+	--color-white: #fff;
+
+	/* Borders / Radius */
+	--radius-20: 20px;
+	--radius-10: 10px;
+
+	--border-gradient-gray-vertical: rgba(232, 232, 233, 0.65);
+}
+
+@layer utilities {
+	.focus-ring {
+		@apply focus-visible:ring-2 focus-visible:ring-[var(--color-black-100)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-white)] focus-visible:outline-none;
+	}
+	.focus-within-ring {
+		@apply focus-within:ring-2 focus-within:ring-[var(--color-black-100)] focus-within:ring-offset-1 focus-within:ring-offset-[var(--color-white)] focus-within:outline-none;
+	}
+}
