@@ -150,7 +150,7 @@
 
 		<Checkbox id="tos" bind:checked={agreed}>
 			I agree to all the
-			<span class="font-semibold text-[var(--color-black-600)]"> Termss </span>
+			<span class="font-semibold text-[var(--color-black-600)]"> Term </span>
 			&amp;
 			<span class="font-semibold text-[var(--color-black-600)]"> Privacy Policy</span>
 		</Checkbox>
