@@ -14,9 +14,12 @@
 	export let error: string | undefined = undefined;
 	export let leading = false;
 	export let trailing = false;
+	export let labelLinkText: string | undefined = undefined;
+	export let labelLinkHref: string = '#';
 
 	const fieldStack = 'flex flex-col';
 	const labelBase = 'text-[14px] font-medium text-[var(--color-black-400)] mb-[6px]';
+	const labelContainer = 'flex items-center justify-between';
 
 	const shellBase =
 		'flex items-center justify-between gap-[4px] self-stretch ' +
@@ -43,11 +46,21 @@
 
 	const iconBox = 'shrink-0 flex items-center justify-center size-5';
 	const errorBase = 'mt-[4px] text-[12px] font-normal text-[var(--color-red-500)]';
+
+	const labelLinkBase =
+		'font-bold underline decoration-solid text-[14px] leading-5 text-[var(--color-purple-500)] hover:text-[var(--color-purple-700)] focus-ring rounded-[4px]';
 </script>
 
 <div class={`${fieldStack} ${full ? 'w-full' : ''}`}>
 	{#if label}
-		<label for={id} class={labelBase}>{label}</label>
+		<div class={labelContainer}>
+			<label for={id} class={labelBase}>{label}</label>
+			{#if labelLinkText}
+				<a href={labelLinkHref} class={labelLinkBase}>
+					{labelLinkText}
+				</a>
+			{/if}
+		</div>
 	{/if}
 
 	<div
