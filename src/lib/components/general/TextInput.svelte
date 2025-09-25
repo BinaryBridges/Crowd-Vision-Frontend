@@ -19,7 +19,7 @@
 
 	const fieldStack = 'flex flex-col';
 	const labelBase = 'text-[14px] font-medium text-[var(--color-black-400)] mb-[6px]';
-	const labelContainer = 'flex items-center justify-between';
+	const labelContainer = 'flex items-baseline justify-between';
 
 	const shellBase =
 		'flex items-center justify-between gap-[4px] self-stretch ' +
@@ -48,7 +48,7 @@
 	const errorBase = 'mt-[4px] text-[12px] font-normal text-[var(--color-red-500)]';
 
 	const labelLinkBase =
-		'font-bold underline decoration-solid text-[14px] leading-5 text-[var(--color-purple-500)] hover:text-[var(--color-purple-700)] focus-ring rounded-[4px]';
+		'font-bold underline decoration-solid text-[14px] leading-5 text-[var(--color-purple-500)] hover:text-[var(--color-purple-700)] focus-ring rounded-[4px] decoration-auto decoration-skip-ink-auto';
 </script>
 
 <div class={`${fieldStack} ${full ? 'w-full' : ''}`}>

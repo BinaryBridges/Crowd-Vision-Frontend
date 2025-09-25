@@ -66,7 +66,7 @@
 			id="password"
 			label="Password"
 			labelLinkText="Forgot Password"
-			labelLinkHref="/forgot-password"
+			labelLinkHref="forgot-password"
 			placeholder="Type password…"
 			bind:value={password}
 			error={passwordError}
