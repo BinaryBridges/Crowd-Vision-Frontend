@@ -10,7 +10,6 @@
 	import SettingsIcon from '$lib/icons/SettingsIcon.svelte';
 
 	let openDashboard = true;
-
 	const starred: string[] = ['Project 101', 'UX Audit', 'Mylo AI Initiative'];
 
 	function onDashboardToggle() {
@@ -24,12 +23,8 @@
 </script>
 
 <aside
-	class="flex min-h-screen border-r"
-	style="
-    width: 324px;
-    background: var(--color-grey-25);
-    border-right: 1px solid var(--color-black-50);
-  "
+	class="sidebar fixed top-0 left-0 z-40 flex h-dvh border-r bg-[var(--color-grey-25)]"
+	style="width: var(--sidebar-w); border-right: 1px solid var(--color-black-50);"
 >
 	<div
 		class="flex h-full w-14 shrink-0 flex-col items-center justify-between border-r"
@@ -44,7 +39,7 @@
 		</div>
 		<div class="space-y-2 pb-3"></div>
 	</div>
-	<div class="flex min-h-screen flex-1 flex-col">
+	<div class="flex h-full flex-1 flex-col overflow-y-auto">
 		<div class="px-4 pt-4 pb-3">
 			<div
 				class="truncate"
@@ -79,6 +74,7 @@
 					/>
 				</div>
 			{/if}
+
 			<NavItem label="Upload" Icon={UploadIcon} href="/app/upload" />
 			<NavItem label="Clients" Icon={ClientsIcon} href="/app/clients" />
 
@@ -104,14 +100,17 @@
 </aside>
 
 <style>
+	:root {
+		--sidebar-w: 324px;
+	}
 	@media (max-width: 1280px) {
-		aside {
-			width: 300px;
+		:root {
+			--sidebar-w: 300px;
 		}
 	}
 	@media (max-width: 1024px) {
-		aside {
-			width: 280px;
+		:root {
+			--sidebar-w: 280px;
 		}
 	}
 </style>

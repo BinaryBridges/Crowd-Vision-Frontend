@@ -4,6 +4,7 @@
 	/* Colors */
 	--color-purple-700: #6631a5;
 	--color-purple-500: #8f45e8;
+	--color-purple-50: #f4ecfd;
 
 	--color-grey-200: #bababc;
 	--color-grey-50: #f0f0f0;
@@ -20,11 +21,18 @@
 	--color-black-100: #b7b8bc;
 	--color-black-50: #e8e8e9;
 
+	--color-orange-500: #ff6614;
+	--color-orange-50: #fff0e8;
+
+	--color-green-600: #0fa144;
+	--color-green-50: #e7f7ed;
+
 	--color-white: #fff;
 
 	/* Borders / Radius */
 	--radius-20: 20px;
 	--radius-10: 10px;
+	--radius-6: 6px;
 
 	--border-gradient-gray-vertical: rgba(232, 232, 233, 0.65);
 }
