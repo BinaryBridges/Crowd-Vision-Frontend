@@ -17,6 +17,12 @@ export default defineSchema({
 		total_age_distribution: ageDistributionValidator,
 		events: v.array(v.id('events'))
 	}).index('by_name', ['name']),
+	clients: defineTable({
+		name: v.string(),
+		company: v.string(),
+		representative: v.string(),
+		logo: v.string()
+	}).index('by_name', ['name']),
 	events: defineTable({
 		name: v.string(),
 		price: v.float64(),
@@ -24,6 +30,15 @@ export default defineSchema({
 		age_distribution: ageDistributionValidator,
 		gender: genderBucketValidator,
 		gender_distribution: genderDistributionValidator,
-		data_quality: v.float64()
-	}).index('by_name', ['name'])
+		data_quality: v.float64(),
+		client: v.id('clients'),
+		image: v.string(),
+		completion_time: v.number(),
+		status: v.string(),
+		favourite: v.boolean()
+	})
+		.index('by_name', ['name'])
+		.index('by_client', ['client'])
+		.index('by_status', ['status'])
+		.index('by_favourite', ['favourite'])
 });
