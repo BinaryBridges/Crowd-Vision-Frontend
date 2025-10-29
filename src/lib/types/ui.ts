@@ -1,4 +1,5 @@
 import type { Component } from 'svelte';
+import type { Pathname } from '$app/types';
 
 export interface TableColumn<T extends Record<string, unknown>> {
 	key: string;
@@ -17,7 +18,7 @@ export interface TableTab {
 
 export interface Crumb {
 	label: string;
-	href?: string;
+	href?: Pathname;
 	Icon?: Component;
 }
 
