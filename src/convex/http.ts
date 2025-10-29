@@ -58,6 +58,11 @@ type EventPayload = {
 	gender: GenderSummary;
 	gender_distribution: GenderDistribution;
 	data_quality: number;
+	client: Id<'clients'>;
+	image: string;
+	completion_time: number;
+	status: string;
+	favourite: boolean;
 };
 
 type UserPayload = {
@@ -136,6 +141,13 @@ function assertString(value: unknown, path: string): string {
 	return value;
 }
 
+function assertBoolean(value: unknown, path: string): boolean {
+	if (typeof value !== 'boolean') {
+		throw new Error(`${path} must be a boolean`);
+	}
+	return value;
+}
+
 function parseDistribution(
 	source: Record<string, unknown>,
 	keys: readonly string[],
@@ -207,7 +219,12 @@ function parseEventPayload(input: unknown, path = 'event'): EventPayload {
 			record.gender_distribution,
 			`${path}.gender_distribution`
 		),
-		data_quality: assertNumber(record.data_quality, `${path}.data_quality`)
+		data_quality: assertNumber(record.data_quality, `${path}.data_quality`),
+		client: assertString(record.client, `${path}.client`) as Id<'clients'>,
+		image: assertString(record.image, `${path}.image`),
+		completion_time: assertNumber(record.completion_time, `${path}.completion_time`),
+		status: assertString(record.status, `${path}.status`),
+		favourite: assertBoolean(record.favourite, `${path}.favourite`)
 	};
 }
 
@@ -248,6 +265,66 @@ function parseUserPayload(input: unknown): UserPayload {
 	};
 }
 
+// Create a simple event with minimal required fields
+http.route({
+	path: '/events/create',
+	method: 'POST',
+	handler: httpAction(async ({ runMutation }, request) => {
+		try {
+			const payload = assertObject(await request.json(), 'payload');
+			const eventId = await runMutation(api.events.create, {
+				name: assertString(payload.name, 'payload.name'),
+				image: assertString(payload.image, 'payload.image'),
+				client: assertString(payload.client, 'payload.client') as Id<'clients'>,
+				status: assertString(payload.status, 'payload.status'),
+				userId: payload.userId
+					? (assertString(payload.userId, 'payload.userId') as Id<'users'>)
+					: undefined
+			});
+			return jsonResponse({ eventId });
+		} catch (error) {
+			return jsonResponse({ error: asErrorMessage(error) }, 400);
+		}
+	})
+});
+
+// Add an event to a user
+http.route({
+	path: '/events/add-to-user',
+	method: 'POST',
+	handler: httpAction(async ({ runMutation }, request) => {
+		try {
+			const payload = assertObject(await request.json(), 'payload');
+			const userId = await runMutation(api.events.addToUser, {
+				userId: assertString(payload.userId, 'payload.userId') as Id<'users'>,
+				eventId: assertString(payload.eventId, 'payload.eventId') as Id<'events'>
+			});
+			return jsonResponse({ userId });
+		} catch (error) {
+			return jsonResponse({ error: asErrorMessage(error) }, 400);
+		}
+	})
+});
+
+// Update event status
+http.route({
+	path: '/events/update-status',
+	method: 'POST',
+	handler: httpAction(async ({ runMutation }, request) => {
+		try {
+			const payload = assertObject(await request.json(), 'payload');
+			const eventId = await runMutation(api.events.updateStatus, {
+				eventId: assertString(payload.eventId, 'payload.eventId') as Id<'events'>,
+				status: assertString(payload.status, 'payload.status')
+			});
+			return jsonResponse({ eventId });
+		} catch (error) {
+			return jsonResponse({ error: asErrorMessage(error) }, 400);
+		}
+	})
+});
+
+// Update event analysis data (existing full data ingestion)
 http.route({
 	path: '/ingest/events',
 	method: 'POST',
@@ -256,6 +333,45 @@ http.route({
 			const payload = parseEventPayload(await request.json());
 			const id = await runMutation(api.events.save, payload);
 			return jsonResponse({ id });
+		} catch (error) {
+			return jsonResponse({ error: asErrorMessage(error) }, 400);
+		}
+	})
+});
+
+// Update event analysis data by ID
+http.route({
+	path: '/events/update-analysis',
+	method: 'POST',
+	handler: httpAction(async ({ runMutation }, request) => {
+		try {
+			const payload = assertObject(await request.json(), 'payload');
+			const eventId = await runMutation(api.events.updateAnalysisDataWithUser, {
+				eventId: assertString(payload.eventId, 'payload.eventId') as Id<'events'>,
+				userId: payload.userId
+					? (assertString(payload.userId, 'payload.userId') as Id<'users'>)
+					: undefined,
+				price:
+					payload.price !== undefined ? assertNumber(payload.price, 'payload.price') : undefined,
+				age: payload.age ? parseEventAgeSummary(payload.age, 'payload.age') : undefined,
+				age_distribution: payload.age_distribution
+					? parseAgeDistribution(payload.age_distribution, 'payload.age_distribution')
+					: undefined,
+				gender: payload.gender ? parseGenderSummary(payload.gender, 'payload.gender') : undefined,
+				gender_distribution: payload.gender_distribution
+					? parseGenderDistribution(payload.gender_distribution, 'payload.gender_distribution')
+					: undefined,
+				data_quality:
+					payload.data_quality !== undefined
+						? assertNumber(payload.data_quality, 'payload.data_quality')
+						: undefined,
+				status: payload.status ? assertString(payload.status, 'payload.status') : undefined,
+				favourite:
+					payload.favourite !== undefined
+						? assertBoolean(payload.favourite, 'payload.favourite')
+						: undefined
+			});
+			return jsonResponse({ eventId });
 		} catch (error) {
 			return jsonResponse({ error: asErrorMessage(error) }, 400);
 		}
