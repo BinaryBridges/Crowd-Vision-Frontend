@@ -10,12 +10,23 @@
 	import AnalysisDateCell from '$lib/components/table/AnalysisDateCell.svelte';
 	import FavoriteCell from '$lib/components/table/FavoriteCell.svelte';
 	import type { Crumb, TableColumn, TableTab } from '$lib/types/ui';
+	import { useConvexClient } from 'convex-svelte';
+	import { api } from '$convex/_generated/api';
+	import { onMount } from 'svelte';
+	import { PUBLIC_USER_ID } from '$env/static/public';
+	import type { Doc, Id } from '$convex/_generated/dataModel';
 
 	const segments: Crumb[] = [
 		{ label: 'Dashboard', href: '/app/overview', Icon: DashboardIcon },
 		{ label: 'Events' }
 	];
 
+	// Type for what getByUserId returns (event with client info)
+	type EventWithClient = Doc<'events'> & {
+		clientInfo: Doc<'clients'> | null;
+	};
+
+	// Type for transformed UI data
 	interface Event {
 		id: string;
 		name: string;
@@ -30,128 +41,88 @@
 		[key: string]: string | number | boolean;
 	}
 
-	let events: Event[] = [
-		{
-			id: '1',
-			name: 'Promotion Partner',
-			company: 'Oca Auto',
-			logo: '🏎️',
-			color: '#FFF4ED',
-			representative: 'Amelia Brooks',
-			eventDate: 1765497600000,
-			analysisDate: 1765497600000,
-			status: 'In Progress',
-			isFavorite: false
-		},
-		{
-			id: '2',
-			name: 'Educations Platform',
-			company: 'Okay co',
-			logo: '📚',
-			color: '#E3F2FD',
-			representative: 'Nathan Cole',
-			eventDate: 1765324800000,
-			analysisDate: 1765497600000,
-			status: 'In Progress',
-			isFavorite: false
-		},
-		{
-			id: '3',
-			name: 'Website Redesign',
-			company: '4square',
-			logo: '⚙️',
-			color: '#FFF3E0',
-			representative: 'Priya Kapoor',
-			eventDate: 1764892800000,
-			analysisDate: 1765497600000,
-			status: 'Draft',
-			isFavorite: true
-		},
-		{
-			id: '4',
-			name: 'Rebranding',
-			company: 'Loopline',
-			logo: '🔄',
-			color: '#F3E5F5',
-			representative: 'Elijah Torres',
-			eventDate: 1761696000000,
-			analysisDate: 1765497600000,
-			status: 'Draft',
-			isFavorite: false
-		},
-		{
-			id: '5',
-			name: 'Internal CMS Tools',
-			company: 'Zola',
-			logo: '⚡',
-			color: '#E8EAF6',
-			representative: 'Sofia Mendes',
-			eventDate: 1760486400000,
-			analysisDate: 1765497600000,
-			status: 'Finished',
-			isFavorite: false
-		},
-		{
-			id: '6',
-			name: 'App Redesign',
-			company: 'Slashri',
-			logo: '🔺',
-			color: '#FFEBEE',
-			representative: 'Lucas Grant',
-			eventDate: 1759190400000,
-			analysisDate: 1765497600000,
-			status: 'Overdue',
-			isFavorite: false
-		},
-		{
-			id: '7',
-			name: 'Media Campaign',
-			company: 'ShieldFy',
-			logo: '🛡️',
-			color: '#E1F5FE',
-			representative: 'Aisha Rahman',
-			eventDate: 1756684800000,
-			analysisDate: 1765497600000,
-			status: 'Draft',
-			isFavorite: false
-		},
-		{
-			id: '8',
-			name: 'Project Alpha',
-			company: 'Lightbulb',
-			logo: '💡',
-			color: '#FFF9C4',
-			representative: "Daniel O'Connor",
-			eventDate: 1755993600000,
-			analysisDate: 1765497600000,
-			status: 'Finished',
-			isFavorite: false
-		},
-		{
-			id: '9',
-			name: 'Template Design',
-			company: 'Target',
-			logo: '🎯',
-			color: '#FCE4EC',
-			representative: 'Mei Ling Chen',
-			eventDate: 1754092800000,
-			analysisDate: 1765497600000,
-			status: 'Finished',
-			isFavorite: false
-		},
-		{
-			id: '10',
-			name: 'Marketing Project',
-			company: 'Dossbe',
-			logo: '📊',
-			color: '#E0F2F1',
-			representative: 'Victor Alvarez',
-			eventDate: 1750291200000,
-			analysisDate: 1765497600000,
-			status: 'Finished',
-			isFavorite: false
+	// Get USER_ID from public environment variable
+	const USER_ID = PUBLIC_USER_ID;
+
+	// Get Convex client
+	const convexClient = useConvexClient();
+
+	// State for events data
+	let eventsData: EventWithClient[] = [];
+	let isLoading = true;
+	let error: string | null = null;
+
+	// Function to load events data
+	async function loadEvents() {
+		isLoading = true;
+		error = null;
+		try {
+			if (convexClient) {
+				console.log('Loading events with client:', !!convexClient);
+				const result = await convexClient.query(api.events.getByUserId, {
+					userId: USER_ID as Id<'users'>
+				});
+				eventsData = result || [];
+				console.log('Loaded events:', eventsData);
+			} else {
+				error = 'Convex client not available';
+			}
+		} catch (err) {
+			console.error('Error loading events:', err);
+			error = err instanceof Error ? err.message : 'Unknown error';
+		} finally {
+			isLoading = false;
 		}
-	];
+	}
+
+	// Load events on mount
+	onMount(async () => {
+		console.log('NEW CODE: onMount running, client available:', !!convexClient);
+		await loadEvents();
+	});
+
+	// Function to map database status to UI status
+	function mapStatus(dbStatus: string): 'In Progress' | 'Finished' | 'Draft' | 'Overdue' {
+		switch (dbStatus.toLowerCase()) {
+			case 'completed':
+			case 'finished':
+				return 'Finished';
+			case 'in progress':
+			case 'in_progress':
+			case 'progress':
+				return 'In Progress';
+			case 'draft':
+				return 'Draft';
+			case 'overdue':
+				return 'Overdue';
+			default:
+				return 'Draft'; // Default fallback
+		}
+	}
+
+	// Function to handle logo - return the URL or a default emoji
+	function getLogo(logoUrl: string | undefined): string {
+		return logoUrl || '📊'; // Return the URL as-is, or default emoji if no logo
+	}
+
+	// Transform Convex data to match UI expectations
+	$: events =
+		isLoading || error || !eventsData
+			? []
+			: eventsData.map(
+					(event: EventWithClient): Event => ({
+						id: event._id,
+						name: event.name,
+						company: event.clientInfo?.company || 'Unknown Company',
+						logo: getLogo(event.image), // Use event image instead of client logo
+						color: '#E0F2F1', // Default color since it's missing from DB
+						representative: event.clientInfo?.representative || 'Unknown Rep',
+						eventDate: event.completion_time || Date.now(), // Using completion_time as eventDate
+						analysisDate: event.completion_time || Date.now(),
+						status: mapStatus(event.status),
+						isFavorite: event.favourite || false
+					})
+				);
 
 	const tabs: TableTab[] = [
 		{ label: 'All', value: 'all' },
@@ -223,9 +194,65 @@
 		}
 	}
 
-	function handleRowDelete(event: CustomEvent<Event>) {
-		console.log('Delete clicked for:', event.detail);
-		// Handle delete logic here
+	async function handleRowDelete(eventToDelete: Event) {
+		console.log('DELETE: Starting delete process for event:', eventToDelete);
+		console.log('DELETE: Event ID:', eventToDelete.id);
+		console.log('DELETE: User ID:', USER_ID);
+		console.log('DELETE: Convex client available:', !!convexClient);
+
+		try {
+			if (convexClient) {
+				console.log('DELETE: Calling deleteEvent mutation...');
+				// Call the delete mutation
+				const result = await convexClient.mutation(api.events.deleteEvent, {
+					eventId: eventToDelete.id as Id<'events'>,
+					userId: USER_ID as Id<'users'>
+				});
+
+				console.log('DELETE: Mutation result:', result);
+
+				// Reload the events data
+				console.log('DELETE: Reloading events...');
+				await loadEvents();
+
+				console.log('DELETE: Event deleted successfully');
+			} else {
+				console.error('DELETE: Convex client not available');
+			}
+		} catch (err) {
+			console.error('DELETE: Error deleting event:', err);
+			// You could add a toast notification here
+		}
+	}
+
+	async function handleToggleFavorite(eventToToggle: Event) {
+		console.log('FAVORITE: Starting toggle favorite for event:', eventToToggle);
+		console.log('FAVORITE: Event ID:', eventToToggle.id);
+		console.log('FAVORITE: Current favorite status:', eventToToggle.isFavorite);
+		console.log('FAVORITE: Convex client available:', !!convexClient);
+
+		try {
+			if (convexClient) {
+				console.log('FAVORITE: Calling toggleFavorite mutation...');
+				// Call the toggle favorite mutation
+				const newFavoriteStatus = await convexClient.mutation(api.events.toggleFavorite, {
+					eventId: eventToToggle.id as Id<'events'>
+				});
+
+				console.log('FAVORITE: Mutation result - new favorite status:', newFavoriteStatus);
+
+				// Update local state immediately for better UX
+				eventToToggle.isFavorite = newFavoriteStatus;
+
+				console.log('FAVORITE: Favorite toggled successfully');
+			} else {
+				console.error('FAVORITE: Convex client not available');
+			}
+		} catch (err) {
+			console.error('FAVORITE: Error toggling favorite:', err);
+			// Revert the local state change on error
+			eventToToggle.isFavorite = !eventToToggle.isFavorite;
+		}
 	}
 </script>
 
@@ -243,14 +270,25 @@
 		class="w-full rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)]
            bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
 	>
-		<Table
-			data={filteredEvents}
-			{columns}
-			{tabs}
-			bind:activeTab
-			showCheckboxes={false}
-			showPagination={true}
-			on:action={handleRowDelete}
-		/>
+		{#if isLoading}
+			<div class="flex items-center justify-center py-8">
+				<p class="text-[var(--color-black-400)]">Loading events...</p>
+			</div>
+		{:else if error}
+			<div class="flex items-center justify-center py-8">
+				<p class="text-red-500">Error loading events: {error}</p>
+			</div>
+		{:else}
+			<Table
+				data={filteredEvents}
+				{columns}
+				{tabs}
+				bind:activeTab
+				showCheckboxes={false}
+				showPagination={true}
+				onDelete={handleRowDelete}
+				onToggleFavorite={handleToggleFavorite}
+			/>
+		{/if}
 	</div>
 </PageShell>

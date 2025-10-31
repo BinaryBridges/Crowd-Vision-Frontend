@@ -2,6 +2,7 @@
 	import Checkbox from '$lib/components/general/Checkbox.svelte';
 	import DeleteIcon from '$lib/icons/DeleteIcon.svelte';
 	import DeleteConfirmationModal from '$lib/components/general/DeleteConfirmationModal.svelte';
+	import FavoriteCell from './FavoriteCell.svelte';
 	import type { TableColumn } from '$lib/types/ui';
 
 	type T = $$Generic<Record<string, unknown>>;
@@ -17,6 +18,7 @@
 	export let selected = false;
 	export let onToggle: (id: string) => void;
 	export let onDelete: (item: T & IdentifiableItem) => void;
+	export let onToggleFavorite: ((item: T & IdentifiableItem) => void) | undefined = undefined;
 
 	let showDeleteModal = false;
 
@@ -46,7 +48,9 @@
 	{#each columns as column (column.key)}
 		<td class="px-4 py-4">
 			{#if column.component}
-				<svelte:component this={column.component} {item} />
+				{@const componentProps =
+					column.component === FavoriteCell ? { item, onToggleFavorite } : { item }}
+				<svelte:component this={column.component} {...componentProps} />
 			{:else}
 				<span class="text-[14px] text-[var(--color-black-400)]">
 					{item[column.key] ?? '-'}

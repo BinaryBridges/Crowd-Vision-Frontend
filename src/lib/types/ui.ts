@@ -21,16 +21,3 @@ export interface Crumb {
 	href?: Pathname;
 	Icon?: Component;
 }
-
-export interface Event {
-	id: string;
-	name: string;
-	company: string;
-	logo: string;
-	color: string;
-	representative: string;
-	eventDate: string;
-	analysisDate: string;
-	status: 'In Progress' | 'Finished' | 'Draft' | 'Overdue';
-	isFavorite: boolean;
-}

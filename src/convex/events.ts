@@ -56,6 +56,34 @@ export const getFavourites = query({
 	}
 });
 
+export const getByUserId = query({
+	args: { userId: v.id('users') },
+	handler: async ({ db }, { userId }) => {
+		const user = await db.get(userId);
+		if (!user) {
+			return [];
+		}
+
+		// Get all events for this user
+		const events = await Promise.all(user.events.map((eventId) => db.get(eventId)));
+
+		// Filter out any null events (in case of deleted events) and get client info
+		const eventsWithClients = await Promise.all(
+			events
+				.filter((event): event is NonNullable<typeof event> => event !== null)
+				.map(async (event) => {
+					const client = await db.get(event.client);
+					return {
+						...event,
+						clientInfo: client
+					};
+				})
+		);
+
+		return eventsWithClients.sort((a, b) => a.name.localeCompare(b.name));
+	}
+});
+
 export const create = mutation({
 	args: {
 		name: v.string(),
@@ -232,6 +260,83 @@ export const updateAnalysisData = mutation({
 		}
 
 		return eventId;
+	}
+});
+
+export const deleteEvent = mutation({
+	args: {
+		eventId: v.id('events'),
+		userId: v.optional(v.id('users'))
+	},
+	handler: async ({ db }, { eventId, userId }) => {
+		console.log('CONVEX DELETE: Starting delete for eventId:', eventId, 'userId:', userId);
+
+		// Get the event to verify it exists
+		const event = await db.get(eventId);
+		if (!event) {
+			console.log('CONVEX DELETE: Event not found:', eventId);
+			throw new Error('Event not found');
+		}
+
+		console.log('CONVEX DELETE: Found event:', event.name);
+
+		// If userId is provided, remove the event from the user's events array
+		if (userId) {
+			const user = await db.get(userId);
+			if (user) {
+				console.log('CONVEX DELETE: Found user, current events:', user.events.length);
+				if (user.events.includes(eventId)) {
+					console.log('CONVEX DELETE: Removing event from user events array');
+					await db.patch(userId, {
+						events: user.events.filter((id) => id !== eventId)
+					});
+					console.log('CONVEX DELETE: Updated user events array');
+				} else {
+					console.log('CONVEX DELETE: Event not in user events array');
+				}
+			} else {
+				console.log('CONVEX DELETE: User not found:', userId);
+			}
+		}
+
+		// Delete the event from the database
+		console.log('CONVEX DELETE: Deleting event from database');
+		await db.delete(eventId);
+		console.log('CONVEX DELETE: Event deleted successfully');
+
+		return eventId;
+	}
+});
+
+export const toggleFavorite = mutation({
+	args: {
+		eventId: v.id('events')
+	},
+	handler: async ({ db }, { eventId }) => {
+		console.log('CONVEX FAVORITE: Toggling favorite for eventId:', eventId);
+
+		// Get the event to verify it exists
+		const event = await db.get(eventId);
+		if (!event) {
+			console.log('CONVEX FAVORITE: Event not found:', eventId);
+			throw new Error('Event not found');
+		}
+
+		// Toggle the favorite status
+		const newFavoriteStatus = !event.favourite;
+		console.log(
+			'CONVEX FAVORITE: Changing favorite from',
+			event.favourite,
+			'to',
+			newFavoriteStatus
+		);
+
+		await db.patch(eventId, {
+			favourite: newFavoriteStatus
+		});
+
+		console.log('CONVEX FAVORITE: Successfully updated favorite status');
+		return newFavoriteStatus;
 	}
 });
 
