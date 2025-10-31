@@ -285,11 +285,11 @@
 									></div>
 								</div>
 							</div>
-						</div>
-						<div
-							class="flex items-center justify-end pr-2 text-[12px] text-[var(--color-black-300)]"
-						>
-							Total: {totalPeople}
+							<div
+								class="mt-3 flex items-center justify-end pr-1 text-[12px] text-[var(--color-black-300)]"
+							>
+								Total: {totalPeople}
+							</div>
 						</div>
 					</div>
 				</section>
