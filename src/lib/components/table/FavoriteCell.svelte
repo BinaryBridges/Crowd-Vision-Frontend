@@ -6,12 +6,22 @@
 	}
 
 	export let item: T & FavoriteItem;
+	export let onToggleFavorite: ((item: T & FavoriteItem) => void) | undefined = undefined;
+
 	import StarFullIcon from '$lib/icons/StarFullIcon.svelte';
 	import StarEmptyIcon from '$lib/icons/StarEmptyIcon.svelte';
 	import { writable } from 'svelte/store';
 	const favoriteState = writable(item.isFavorite);
 
 	function toggleFavorite() {
+		console.log('FAVORITE: Toggle clicked for item:', item);
+
+		// Call the parent callback if provided
+		if (onToggleFavorite) {
+			onToggleFavorite(item);
+		}
+
+		// Update local state for immediate UI feedback
 		$favoriteState = !$favoriteState;
 		item.isFavorite = $favoriteState;
 	}

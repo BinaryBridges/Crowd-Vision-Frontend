@@ -27,6 +27,12 @@
 	let sortColumn: string | null = null;
 	let sortDirection: 'asc' | 'desc' = 'asc';
 
+	// Callback for delete events
+	export let onDelete: ((item: T & SortableItem) => void) | undefined = undefined;
+
+	// Callback for favorite toggle events
+	export let onToggleFavorite: ((item: T & SortableItem) => void) | undefined = undefined;
+
 	$: allSelected = data.length > 0 && selectedItems.length === data.length;
 	$: sortedData = sortData(data, sortColumn, sortDirection);
 	$: totalPages = Math.ceil(sortedData.length / itemsPerPage);
@@ -182,7 +188,15 @@
 						{showCheckboxes}
 						selected={selectedItems.includes(getItemId(item))}
 						onToggle={toggleRow}
+						{onToggleFavorite}
 						onDelete={(item) => {
+							console.log('TABLE: Delete triggered for item:', item);
+							// Call the parent's delete callback if provided
+							if (onDelete) {
+								onDelete(item);
+							}
+
+							// Also remove from local state for immediate UI feedback
 							const id = getItemId(item);
 							selectedItems = selectedItems.filter((selectedId) => selectedId !== id);
 							data = data.filter((dataItem) => getItemId(dataItem) !== id);
