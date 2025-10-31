@@ -120,6 +120,21 @@
 	// Ensure FavoriteCell receives a definite boolean
 	$: favItem = { isFavorite: !!event?.favourite };
 
+	async function handleToggleFavoriteDetail() {
+		try {
+			if (!convexClient || !event) return;
+			const newFavoriteStatus = await convexClient.mutation(api.events.toggleFavorite, {
+				eventId: event._id as Id<'events'>
+			});
+			// Update local event state so UI reflects the change
+			event = { ...(event as Doc<'events'>), favourite: newFavoriteStatus };
+			// Inform other UI parts (sidebar) to refresh starred list
+			window.dispatchEvent(new CustomEvent('cv:favorites-changed'));
+		} catch (err) {
+			console.error('FAVORITE (detail): Error toggling favorite:', err);
+		}
+	}
+
 	$: segments = [
 		{ label: 'Dashboard', href: '/app/overview', Icon: DashboardIcon },
 		{ label: 'Events', href: '/app/events' },
@@ -169,7 +184,7 @@
 				</div>
 			</div>
 			<div class="absolute top-4 right-4">
-				<FavoriteCell item={favItem} />
+				<FavoriteCell item={favItem} onToggleFavorite={handleToggleFavoriteDetail} />
 			</div>
 		</section>
 

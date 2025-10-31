@@ -244,6 +244,9 @@
 				// Update local state immediately for better UX
 				eventToToggle.isFavorite = newFavoriteStatus;
 
+				// Notify other UI (e.g., sidebar) to refresh favourites
+				window.dispatchEvent(new CustomEvent('cv:favorites-changed'));
+
 				console.log('FAVORITE: Favorite toggled successfully');
 			} else {
 				console.error('FAVORITE: Convex client not available');

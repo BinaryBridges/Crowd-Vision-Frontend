@@ -5,6 +5,8 @@
 	export let Icon: Component | null = null;
 	export let onClick: () => void = () => {};
 	export let href: string | undefined = undefined;
+	export let avatarSrc: string | null = null;
+	export let avatarAlt: string = '';
 </script>
 
 {#if href}
@@ -20,7 +22,9 @@
 		class:hover:bg-[var(--color-grey-50)]={!selected}
 		class:hover:border-[var(--border-gradient-gray-vertical)]={!selected}
 	>
-		{#if Icon}
+		{#if avatarSrc}
+			<img src={avatarSrc} alt={avatarAlt} class="h-7 w-7 rounded-full object-cover" />
+		{:else if Icon}
 			<svelte:component
 				this={Icon}
 				className="w-5 h-5"
@@ -50,7 +54,9 @@
 		class:enabled:hover:bg-[var(--color-grey-50)]={!selected}
 		class:enabled:hover:border-[var(--border-gradient-gray-vertical)]={!selected}
 	>
-		{#if Icon}
+		{#if avatarSrc}
+			<img src={avatarSrc} alt={avatarAlt} class="h-7 w-7 rounded-full object-cover" />
+		{:else if Icon}
 			<svelte:component
 				this={Icon}
 				className="w-5 h-5"
