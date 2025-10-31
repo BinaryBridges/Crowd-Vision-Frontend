@@ -46,6 +46,19 @@ export const getByStatus = query({
 	}
 });
 
+export const getById = query({
+	args: { id: v.id('events') },
+	handler: async ({ db }, { id }) => {
+		const event = await db.get(id);
+		if (!event) return null;
+		const client = await db.get(event.client);
+		return {
+			...event,
+			clientInfo: client
+		};
+	}
+});
+
 export const getFavourites = query({
 	handler: async ({ db }) => {
 		const events = await db
