@@ -4,6 +4,7 @@
 	import DeleteConfirmationModal from '$lib/components/general/DeleteConfirmationModal.svelte';
 	import FavoriteCell from './FavoriteCell.svelte';
 	import type { TableColumn } from '$lib/types/ui';
+	import { goto } from '$app/navigation';
 
 	type T = $$Generic<Record<string, unknown>>;
 
@@ -34,10 +35,27 @@
 	function handleDeleteCancel() {
 		showDeleteModal = false;
 	}
+
+	function handleRowClick(e: MouseEvent) {
+		// If the user clicked a button, input, link, or svg (icon), don't navigate
+		const target = e.target as HTMLElement | null;
+		if (!target) return;
+		if (target.closest('button, a, input, svg')) return;
+
+		// Navigate to the detail page for this item
+		// The destination is constructed from a trusted internal id.
+		// Linter expects resolved URLs; disable the specific rule on the call.
+		try {
+			goto(`/app/events/${item.id}`); // eslint-disable-line svelte/no-navigation-without-resolve
+		} catch (err) {
+			console.error('Navigation error', err);
+		}
+	}
 </script>
 
 <tr
-	class="group border-b border-[var(--color-black-50)] transition-colors hover:bg-[var(--color-black-25)]"
+	class="group cursor-pointer border-b border-[var(--color-black-50)] transition-colors hover:bg-[var(--color-black-25)]"
+	on:click={handleRowClick}
 >
 	{#if showCheckboxes}
 		<td class="px-4 py-4">

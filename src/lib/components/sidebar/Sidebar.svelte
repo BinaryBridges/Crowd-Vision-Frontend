@@ -8,9 +8,43 @@
 	import ClientsIcon from '$lib/icons/ClientsIcon.svelte';
 	import SignOutIcon from '$lib/icons/SignOutIcon.svelte';
 	import SettingsIcon from '$lib/icons/SettingsIcon.svelte';
+	import { onMount } from 'svelte';
+	import { useConvexClient } from 'convex-svelte';
+	import { api } from '$convex/_generated/api';
+	import type { Doc } from '$convex/_generated/dataModel';
 
 	let openDashboard = true;
-	const starred: string[] = ['Project 101', 'UX Audit', 'Mylo AI Initiative'];
+
+	// Convex client
+	const convexClient = useConvexClient();
+
+	// Starred events state
+	let starredEvents: Doc<'events'>[] = [];
+	let starredError: string | null = null;
+
+	async function loadStarred() {
+		starredError = null;
+		try {
+			if (convexClient) {
+				const result = await convexClient.query(api.events.getFavourites, {});
+				starredEvents = (result || []).filter(Boolean);
+			} else {
+				starredError = 'Convex client not available';
+			}
+		} catch (err) {
+			console.error('Error loading starred events:', err);
+			starredError = err instanceof Error ? err.message : 'Unknown error';
+		}
+	}
+
+	onMount(() => {
+		loadStarred();
+
+		// Optional: refresh when favorites change elsewhere
+		const handler = () => loadStarred();
+		window.addEventListener('cv:favorites-changed', handler);
+		return () => window.removeEventListener('cv:favorites-changed', handler);
+	});
 
 	function onDashboardToggle() {
 		if (!openDashboard) {
@@ -83,9 +117,20 @@
 					Starred Events
 				</div>
 				<div class="space-y-1">
-					{#each starred as name (name)}
-						<NavItem label={name} />
-					{/each}
+					{#if starredError}
+						<div class="px-2 py-1 text-[12px] text-red-500">{starredError}</div>
+					{:else if starredEvents.length === 0}
+						<div class="px-2 py-1 text-[12px] text-[var(--color-black-300)]">No favorites yet</div>
+					{:else}
+						{#each starredEvents as ev (ev._id)}
+							<NavItem
+								label={ev.name}
+								href={`/app/events/${ev._id}`}
+								avatarSrc={ev.image}
+								avatarAlt={ev.name}
+							/>
+						{/each}
+					{/if}
 				</div>
 			</div>
 		</div>

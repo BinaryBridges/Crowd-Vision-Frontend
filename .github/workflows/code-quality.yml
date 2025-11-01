@@ -7,6 +7,11 @@ on:
 jobs:
   lint-and-format:
     runs-on: ubuntu-latest
+    env:
+      PUBLIC_CONVEX_URL: https://example.invalid
+      PUBLIC_USER_ID: dummy-user
+      CONVEX_DEPLOYMENT: dev:dummy
+      USER_ID: dummy-user
 
     steps:
       - name: Checkout code

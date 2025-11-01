@@ -46,6 +46,19 @@ export const getByStatus = query({
 	}
 });
 
+export const getById = query({
+	args: { id: v.id('events') },
+	handler: async ({ db }, { id }) => {
+		const event = await db.get(id);
+		if (!event) return null;
+		const client = await db.get(event.client);
+		return {
+			...event,
+			clientInfo: client
+		};
+	}
+});
+
 export const getFavourites = query({
 	handler: async ({ db }) => {
 		const events = await db
@@ -90,9 +103,16 @@ export const create = mutation({
 		image: v.string(),
 		client: v.id('clients'),
 		status: v.string(),
-		userId: v.optional(v.id('users'))
+		userId: v.optional(v.id('users')),
+		description: v.optional(v.string()),
+		start_date: v.optional(v.number()),
+		end_date: v.optional(v.number()),
+		has_paid: v.optional(v.boolean())
 	},
-	handler: async ({ db }, { name, image, client, status, userId }) => {
+	handler: async (
+		{ db },
+		{ name, image, client, status, userId, description, start_date, end_date, has_paid }
+	) => {
 		// Create event with minimal data, setting defaults for analysis fields
 		const eventId = await db.insert('events', {
 			name,
@@ -102,6 +122,10 @@ export const create = mutation({
 			favourite: false,
 			price: 0,
 			completion_time: Date.now(),
+			description: description ?? '',
+			start_date: start_date ?? Date.now(),
+			end_date: end_date ?? Date.now(),
+			has_paid: has_paid ?? false,
 			// Default empty analysis data
 			age: {
 				min: 0,
@@ -208,7 +232,11 @@ export const save = mutation({
 		image: v.string(),
 		completion_time: v.number(),
 		status: v.string(),
-		favourite: v.boolean()
+		favourite: v.boolean(),
+		description: v.optional(v.string()),
+		start_date: v.optional(v.number()),
+		end_date: v.optional(v.number()),
+		has_paid: v.optional(v.boolean())
 	},
 	handler: async ({ db }, args) => {
 		const existing = await db
@@ -228,7 +256,11 @@ export const save = mutation({
 				image: args.image,
 				completion_time: args.completion_time,
 				status: args.status,
-				favourite: args.favourite
+				favourite: args.favourite,
+				description: args.description ?? existing.description,
+				start_date: args.start_date ?? existing.start_date,
+				end_date: args.end_date ?? existing.end_date,
+				has_paid: args.has_paid ?? existing.has_paid
 			});
 			return existing._id;
 		}
@@ -337,6 +369,24 @@ export const toggleFavorite = mutation({
 
 		console.log('CONVEX FAVORITE: Successfully updated favorite status');
 		return newFavoriteStatus;
+	}
+});
+
+// Utility mutation to backfill newly added optional fields on existing events
+export const backfillMissingEventFields = mutation({
+	handler: async ({ db }) => {
+		const events = await db.query('events').collect();
+		for (const ev of events) {
+			const patch: Record<string, unknown> = {};
+			if (ev.description === undefined) patch.description = '';
+			if (ev.start_date === undefined) patch.start_date = ev.completion_time ?? Date.now();
+			if (ev.end_date === undefined) patch.end_date = ev.completion_time ?? Date.now();
+			if (ev.has_paid === undefined) patch.has_paid = false;
+			if (Object.keys(patch).length) {
+				await db.patch(ev._id, patch);
+			}
+		}
+		return true;
 	}
 });
 
