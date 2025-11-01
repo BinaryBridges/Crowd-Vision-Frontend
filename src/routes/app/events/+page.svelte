@@ -13,6 +13,8 @@
 	import { useConvexClient } from 'convex-svelte';
 	import { api } from '$convex/_generated/api';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { PUBLIC_USER_ID } from '$env/static/public';
 	import type { Doc, Id } from '$convex/_generated/dataModel';
 
@@ -266,7 +268,11 @@
 
 	<div class="flex w-full items-center justify-between">
 		<h1 class="text-[24px] font-semibold text-[var(--color-black-600)]">Events</h1>
-		<Button variant="primary" ariaLabel="Add Event">Add Event</Button>
+		<Button
+			variant="primary"
+			ariaLabel="Add Event"
+			on:click={() => goto(resolve('/app/events/add'))}>Add Event</Button
+		>
 	</div>
 
 	<div

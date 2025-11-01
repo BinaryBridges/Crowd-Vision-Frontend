@@ -25,6 +25,7 @@ export default defineSchema({
 	}).index('by_name', ['name']),
 	events: defineTable({
 		name: v.string(),
+		description: v.optional(v.string()),
 		price: v.float64(),
 		age: eventAgeSummaryValidator,
 		age_distribution: ageDistributionValidator,
@@ -34,6 +35,9 @@ export default defineSchema({
 		client: v.id('clients'),
 		image: v.string(),
 		completion_time: v.number(),
+		start_date: v.optional(v.number()),
+		end_date: v.optional(v.number()),
+		has_paid: v.optional(v.boolean()),
 		status: v.string(),
 		favourite: v.boolean()
 	})

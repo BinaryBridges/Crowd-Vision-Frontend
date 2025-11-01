@@ -28,6 +28,7 @@
 	let client: Doc<'clients'> | null = null;
 	let isLoading = true;
 	let error: string | null = null;
+	let lastLoadedId: string | null = null;
 
 	const ageLabels = [
 		'0-10',
@@ -42,42 +43,28 @@
 		'91-100'
 	];
 
-	onMount(async () => {
+	async function loadEventById(id: string) {
 		isLoading = true;
 		error = null;
-
-		const id = get(page).params.id as string;
-
 		try {
-			if (!convexClient) {
-				throw new Error('Convex client not available');
-			}
-
+			if (!convexClient) throw new Error('Convex client not available');
 			const res = await convexClient.query(api.events.getById, { id: id as Id<'events'> });
-
 			if (!res) {
 				error = 'Event not found';
-				isLoading = false;
 				return;
 			}
-
-			// res contains event fields and clientInfo (as implemented in server query)
 			event = res;
 			client = res.clientInfo || null;
-
-			// Ensure the event is added to the user's list if needed
-			try {
-				if (PUBLIC_USER_ID) {
+			lastLoadedId = id;
+			if (PUBLIC_USER_ID) {
+				try {
 					await convexClient.mutation(api.events.addToUser, {
 						userId: PUBLIC_USER_ID as Id<'users'>,
 						eventId: id as Id<'events'>
 					});
-
-					// addToUser call completed (reactive values are declared at top-level)
+				} catch (addErr) {
+					console.warn('addToUser failed:', addErr);
 				}
-			} catch (addErr) {
-				// Non-fatal if addToUser fails (user may not exist in dev env)
-				console.warn('addToUser failed:', addErr);
 			}
 		} catch (err) {
 			console.error(err);
@@ -85,6 +72,18 @@
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	onMount(() => {
+		const id = get(page).params.id as string;
+		loadEventById(id);
+		const unsubscribe = page.subscribe(($p) => {
+			const nextId = $p.params.id as string;
+			if (nextId && nextId !== lastLoadedId) {
+				loadEventById(nextId);
+			}
+		});
+		return unsubscribe;
 	});
 
 	// Top-level reactive declarations
@@ -193,106 +192,141 @@
 			<div
 				class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)] md:p-6"
 			>
-				<!-- Quick stats -->
-				<section class="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+				<!-- Project Details (always visible) -->
+				<section class="mb-4 grid w-full grid-cols-1 gap-4 md:grid-cols-2">
 					<div
 						class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
 					>
-						<div class="text-[12px] text-[var(--color-black-300)]">Age Avg</div>
-						<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
-							{event?.age?.average ?? 0}
+						<h3 class="mb-2 text-[14px] font-semibold text-[var(--color-black-600)]">Details</h3>
+						<div class="space-y-2 text-[14px]">
+							<div>
+								<span class="text-[var(--color-black-300)]">Start</span>
+								<div class="text-[var(--color-black-600)]">
+									{event?.start_date ? new Date(event.start_date).toLocaleString() : '—'}
+								</div>
+							</div>
+							<div>
+								<span class="text-[var(--color-black-300)]">End</span>
+								<div class="text-[var(--color-black-600)]">
+									{event?.end_date ? new Date(event.end_date).toLocaleString() : '—'}
+								</div>
+							</div>
 						</div>
 					</div>
-					<div
-						class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
-					>
-						<div class="text-[12px] text-[var(--color-black-300)]">Age Median</div>
-						<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
-							{event?.age?.median ?? 0}
-						</div>
-					</div>
-					<div
-						class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
-					>
-						<div class="text-[12px] text-[var(--color-black-300)]">Age Min / Max</div>
-						<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
-							{event?.age?.min ?? 0} – {event?.age?.max ?? 0}
-						</div>
-					</div>
-					<div
-						class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
-					>
-						<div class="text-[12px] text-[var(--color-black-300)]">Data Quality</div>
-						<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
-							{Math.round((event?.data_quality ?? 0) * 100)}%
-						</div>
-					</div>
-				</section>
-
-				<!-- Distributions -->
-				<section class="mt-6 grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
-					<BarChart
-						title="Age Distribution"
-						labels={ageLabels}
-						values={ageValues}
-						colorClass="bg-[var(--color-purple-500)]"
-					/>
-
-					<div class="flex w-full flex-col gap-3">
-						<h3 class="text-[16px] font-semibold text-[var(--color-black-600)]">
-							Gender Breakdown
-						</h3>
+					{#if event?.description}
 						<div
-							class="w-full rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+							class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
 						>
-							<div class="flex flex-col gap-4">
-								<div
-									class="flex items-center justify-between text-[14px] text-[var(--color-black-400)]"
-								>
-									<span>Female</span>
-									<span>{event?.gender?.female ?? 0} ({genderPct.female}%)</span>
-								</div>
-								<div class="h-2 w-full overflow-hidden rounded-full bg-[var(--color-grey-50)]">
-									<div
-										class="h-full rounded-full bg-[var(--color-purple-500)]"
-										style={`width:${genderPct.female}%`}
-									></div>
-								</div>
+							<h3 class="mb-2 text-[14px] font-semibold text-[var(--color-black-600)]">
+								About Project
+							</h3>
+							<p class="text-[14px] text-[var(--color-black-500)]">{event.description}</p>
+						</div>
+					{/if}
+				</section>
 
-								<div
-									class="flex items-center justify-between pt-2 text-[14px] text-[var(--color-black-400)]"
-								>
-									<span>Male</span>
-									<span>{event?.gender?.male ?? 0} ({genderPct.male}%)</span>
-								</div>
-								<div class="h-2 w-full overflow-hidden rounded-full bg-[var(--color-grey-50)]">
-									<div
-										class="h-full rounded-full bg-[var(--color-orange-500)]"
-										style={`width:${genderPct.male}%`}
-									></div>
-								</div>
-
-								<div
-									class="flex items-center justify-between pt-2 text-[14px] text-[var(--color-black-400)]"
-								>
-									<span>Unknown</span>
-									<span>{event?.gender?.unknown ?? 0} ({genderPct.unknown}%)</span>
-								</div>
-								<div class="h-2 w-full overflow-hidden rounded-full bg-[var(--color-grey-50)]">
-									<div
-										class="h-full rounded-full bg-[var(--color-black-100)]"
-										style={`width:${genderPct.unknown}%`}
-									></div>
-								</div>
-							</div>
-							<div
-								class="mt-3 flex items-center justify-end pr-1 text-[12px] text-[var(--color-black-300)]"
-							>
-								Total: {totalPeople}
+				{#if (event?.data_quality ?? 0) > 0}
+					<!-- Quick stats (analytics only when data exists) -->
+					<section class="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+						<div
+							class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+						>
+							<div class="text-[12px] text-[var(--color-black-300)]">Age Avg</div>
+							<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
+								{event?.age?.average ?? 0}
 							</div>
 						</div>
-					</div>
-				</section>
+						<div
+							class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+						>
+							<div class="text-[12px] text-[var(--color-black-300)]">Age Median</div>
+							<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
+								{event?.age?.median ?? 0}
+							</div>
+						</div>
+						<div
+							class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+						>
+							<div class="text-[12px] text-[var(--color-black-300)]">Age Min / Max</div>
+							<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
+								{event?.age?.min ?? 0} – {event?.age?.max ?? 0}
+							</div>
+						</div>
+						<div
+							class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+						>
+							<div class="text-[12px] text-[var(--color-black-300)]">Data Quality</div>
+							<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
+								{Math.round((event?.data_quality ?? 0) * 100)}%
+							</div>
+						</div>
+					</section>
+
+					<!-- Distributions -->
+					<section class="mt-6 grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
+						<BarChart
+							title="Age Distribution"
+							labels={ageLabels}
+							values={ageValues}
+							colorClass="bg-[var(--color-purple-500)]"
+						/>
+
+						<div class="flex w-full flex-col gap-3">
+							<h3 class="text-[16px] font-semibold text-[var(--color-black-600)]">
+								Gender Breakdown
+							</h3>
+							<div
+								class="w-full rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+							>
+								<div class="flex flex-col gap-4">
+									<div
+										class="flex items-center justify-between text-[14px] text-[var(--color-black-400)]"
+									>
+										<span>Female</span>
+										<span>{event?.gender?.female ?? 0} ({genderPct.female}%)</span>
+									</div>
+									<div class="h-2 w-full overflow-hidden rounded-full bg-[var(--color-grey-50)]">
+										<div
+											class="h-full rounded-full bg-[var(--color-purple-500)]"
+											style={`width:${genderPct.female}%`}
+										></div>
+									</div>
+
+									<div
+										class="flex items-center justify-between pt-2 text-[14px] text-[var(--color-black-400)]"
+									>
+										<span>Male</span>
+										<span>{event?.gender?.male ?? 0} ({genderPct.male}%)</span>
+									</div>
+									<div class="h-2 w-full overflow-hidden rounded-full bg-[var(--color-grey-50)]">
+										<div
+											class="h-full rounded-full bg-[var(--color-orange-500)]"
+											style={`width:${genderPct.male}%`}
+										></div>
+									</div>
+
+									<div
+										class="flex items-center justify-between pt-2 text-[14px] text-[var(--color-black-400)]"
+									>
+										<span>Unknown</span>
+										<span>{event?.gender?.unknown ?? 0} ({genderPct.unknown}%)</span>
+									</div>
+									<div class="h-2 w-full overflow-hidden rounded-full bg-[var(--color-grey-50)]">
+										<div
+											class="h-full rounded-full bg-[var(--color-black-100)]"
+											style={`width:${genderPct.unknown}%`}
+										></div>
+									</div>
+								</div>
+								<div
+									class="mt-3 flex items-center justify-end pr-1 text-[12px] text-[var(--color-black-300)]"
+								>
+									Total: {totalPeople}
+								</div>
+							</div>
+						</div>
+					</section>
+				{/if}
 			</div>
 		</div>
 	{/if}

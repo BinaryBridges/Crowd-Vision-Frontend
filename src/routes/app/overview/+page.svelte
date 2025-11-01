@@ -10,6 +10,8 @@
 	import { PUBLIC_USER_ID } from '$env/static/public';
 	import type { Doc, Id } from '$convex/_generated/dataModel';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	const segments: Crumb[] = [
 		{ label: 'Dashboard', href: '/app/overview', Icon: DashboardIcon },
@@ -202,7 +204,11 @@
 				>
 					{nowText}
 				</div>
-				<Button variant="primary" ariaLabel="Add Event">Add Event</Button>
+				<Button
+					variant="primary"
+					ariaLabel="Add Event"
+					on:click={() => goto(resolve('/app/events/add'))}>Add Event</Button
+				>
 			</div>
 		</section>
 
