@@ -1,7 +1,6 @@
 <script lang="ts">
 	import PageShell from '$lib/components/layout/PageShell.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DashboardIcon from '$lib/icons/DashboardIcon.svelte';
 	import Button from '$lib/components/general/Button.svelte';
 	import TextInput from '$lib/components/general/TextInput.svelte';
 	import Dropdown from '$lib/components/general/Dropdown.svelte';
@@ -15,12 +14,9 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { PUBLIC_USER_ID } from '$env/static/public';
+	import { queueUploads } from '$lib/upload/uploadStore';
 
-	const segments: Crumb[] = [
-		{ label: 'Dashboard', href: '/app/overview', Icon: DashboardIcon },
-		{ label: 'Event', href: '/app/events' },
-		{ label: 'Add Event' }
-	];
+	const segments: Crumb[] = [{ label: 'Upload', Icon: UploadIcon }];
 
 	const convex = useConvexClient();
 
@@ -39,13 +35,23 @@
 		url: string;
 		name: string;
 		sizeText: string;
-		status: 'Uploading' | 'Uploaded';
 	};
+	type UploadDesc =
+		| { mode: 'single'; key: string; url: string; contentType: string }
+		| {
+				mode: 'multipart';
+				key: string;
+				uploadId: string;
+				partSize: number;
+				partUrls: { partNumber: number; url: string }[];
+		  };
 	let videos: VideoItem[] = [];
 
 	let isSubmitting = false;
 	// Image constraints
 	const MAX_IMAGE_BYTES = 1024 * 1024; // 1MB
+	// Video client-side limit
+	const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
 	let imageError: string | undefined;
 	let titleError: string | undefined;
 	let descError: string | undefined;
@@ -100,7 +106,12 @@
 				endDateError = 'Please select an end date.';
 			}
 			if (descError) descError = undefined;
-			// Video is optional for backend create; UI-only
+			// Require at least one video selected
+			if (!Array.isArray(videos) || videos.length === 0) {
+				videoError = 'Please upload at least one video.';
+				isSubmitting = false;
+				return;
+			}
 
 			if (titleError || clientError || startDateError || endDateError) {
 				isSubmitting = false;
@@ -129,7 +140,7 @@
 			const startEpoch = toEpoch(startDate) ?? Date.now();
 			const endEpoch = toEpoch(endDate) ?? startEpoch;
 
-			await convex.mutation(api.events.create, {
+			const eventId = await convex.mutation(api.events.create, {
 				name: title,
 				image,
 				client: clientId as Id<'clients'>,
@@ -141,7 +152,37 @@
 				has_paid: hasPaid
 			});
 
-			// Navigate back to events list
+			// Always ensure S3 folder structure exists, then upload any selected videos
+			try {
+				const data = await convex.action(api.s3.presign, {
+					userId: String(PUBLIC_USER_ID || ''),
+					eventId: String(eventId),
+					files: videos.map((v) => ({
+						name: v.name,
+						type: v.file.type || 'application/octet-stream',
+						size: v.file.size
+					}))
+				});
+				const { uploads = [] } = data as { uploads: UploadDesc[] };
+
+				// Queue background uploads and navigate immediately
+				queueUploads(
+					videos.map((v) => ({ name: v.name, file: v.file })),
+					uploads,
+					(args) => convex.action(api.s3.completeMultipart, args),
+					async () => {
+						await convex.mutation(api.events.updateStatus, {
+							eventId: eventId as Id<'events'>,
+							status: 'In Progress'
+						});
+					}
+				);
+			} catch (err) {
+				console.error(err);
+				videoError = 'Video upload failed. Please try again.';
+			}
+
+			// Navigate back to events list after uploads
 			goto(resolve('/app/events'));
 		} catch (e) {
 			console.error(e);
@@ -180,29 +221,29 @@
 		return `${mb.toFixed(1)} MB`;
 	}
 
+	// (Uploads happen after Add Event)
+
 	function onVideoChange(files: FileList | null) {
 		if (!files || files.length === 0) return;
 		videoError = undefined;
-		Array.from(files).forEach((file) => {
+		for (const file of Array.from(files)) {
 			if (!file.type.startsWith('video/')) {
 				videoError = 'Invalid file type. Please choose a video.';
-				return;
+				continue;
+			}
+			if (file.size > MAX_VIDEO_BYTES) {
+				videoError = `Video is too large. Max ${formatSize(MAX_VIDEO_BYTES)}.`;
+				continue;
 			}
 			const url = URL.createObjectURL(file);
 			const item: VideoItem = {
 				file,
 				url,
 				name: file.name,
-				sizeText: formatSize(file.size),
-				status: 'Uploading'
+				sizeText: formatSize(file.size)
 			};
 			videos = [...videos, item];
-			// Simulate upload completion (UI-only)
-			setTimeout(() => {
-				item.status = 'Uploaded';
-				videos = [...videos]; // trigger Svelte reactivity
-			}, 800);
-		});
+		}
 	}
 
 	function handleVideoDragOver(e: DragEvent) {
@@ -232,7 +273,7 @@
 	</svelte:fragment>
 
 	<div class="flex w-full items-center justify-between">
-		<h1 class="text-[24px] font-semibold text-[var(--color-black-600)]">Add Event</h1>
+		<h1 class="text-[24px] font-semibold text-[var(--color-black-600)]">Upload</h1>
 		<div class="flex items-center gap-2">
 			<Button variant="outline" ariaLabel="Cancel" on:click={() => goto(resolve('/app/events'))}
 				>Cancel</Button
@@ -392,7 +433,7 @@
 								><span class="font-bold text-[var(--color-purple-500)]">Click to Upload</span> or drag
 								and drop</span
 							>
-							<span class="text-[12px]">MP4, MOV, WEBM less than 500MB</span>
+							<span class="text-[12px]">MP4, MOV, WEBM up to 5GB</span>
 							<input
 								type="file"
 								accept="video/*"
@@ -413,32 +454,24 @@
 							<div
 								class="flex items-center justify-between rounded-[12px] border border-[var(--color-black-50)] bg-[var(--color-white)] px-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.04)]"
 							>
-								<div class="flex min-w-0 items-center gap-3">
-									<div class="h-8 w-8 rounded-md bg-[var(--color-purple-50)]"></div>
-									<div class="min-w-0">
-										<div class="truncate text-[14px] font-semibold text-[var(--color-black-600)]">
-											{v.name}
-										</div>
-										<div class="flex items-center gap-2 text-[12px] text-[var(--color-black-300)]">
-											<span>{v.sizeText}</span>
-											<span>•</span>
-											{#if v.status === 'Uploading'}
-												<span class="text-[var(--color-orange-500)]">Uploading</span>
-											{:else}
-												<span class="text-[var(--color-green-600)]">Uploaded</span>
-											{/if}
-										</div>
+								<div class="min-w-0">
+									<div class="truncate text-[14px] font-semibold text-[var(--color-black-600)]">
+										{v.name}
+									</div>
+									<div class="flex items-center gap-2 text-[12px] text-[var(--color-black-300)]">
+										<span>{v.sizeText}</span>
 									</div>
 								</div>
 								<button
 									type="button"
 									aria-label="Remove video"
-									class="flex h-6 items-center justify-center text-[var(--color-red-500)] hover:text-[var(--color-red-600)]"
+									class="flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-red-50)]"
 									on:click={() => removeVideo(i)}
 								>
-									<span class="inline-flex items-center justify-center">
-										<DeleteIcon className="w-6 h-6" />
-									</span>
+									<DeleteIcon
+										className="w-5 h-5"
+										colorClass="text-[var(--color-red-500)] hover:text-[var(--color-red-500)]"
+									/>
 								</button>
 							</div>
 						{/each}

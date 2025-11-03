@@ -103,13 +103,19 @@
 					/>
 					<NavItem
 						label="Events"
-						selected={page.url.pathname.includes('/events')}
+						selected={page.url.pathname.startsWith('/app/events') &&
+							!page.url.pathname.includes('/app/events/add')}
 						href="/app/events"
 					/>
 				</div>
 			{/if}
 
-			<NavItem label="Upload" Icon={UploadIcon} href="/app/upload" />
+			<NavItem
+				label="Upload"
+				Icon={UploadIcon}
+				href="/app/events/add"
+				selected={page.url.pathname.includes('/events/add')}
+			/>
 			<NavItem label="Clients" Icon={ClientsIcon} href="/app/clients" />
 
 			<div class="pt-2">

@@ -15,12 +15,23 @@
 	import type { Id } from '$convex/_generated/dataModel';
 	import type { Doc } from '$convex/_generated/dataModel';
 
-	const STATUS_MAP: Record<string, 'Finished' | 'In Progress' | 'Draft' | 'Overdue'> = {
-		completed: 'Finished',
-		'in-progress': 'In Progress',
-		draft: 'Draft',
-		overdue: 'Overdue'
-	};
+	function mapStatus(dbStatus: string): 'In Progress' | 'Finished' | 'Draft' | 'Overdue' {
+		switch (dbStatus.toLowerCase()) {
+			case 'completed':
+			case 'finished':
+				return 'Finished';
+			case 'in progress':
+			case 'in_progress':
+			case 'progress':
+				return 'In Progress';
+			case 'draft':
+				return 'Draft';
+			case 'overdue':
+				return 'Overdue';
+			default:
+				return 'Draft';
+		}
+	}
 
 	const convexClient = useConvexClient();
 
@@ -87,7 +98,7 @@
 	});
 
 	// Top-level reactive declarations
-	$: statusLabel = event ? (STATUS_MAP[event.status] ?? 'Finished') : 'Draft';
+	$: statusLabel = event ? mapStatus(String(event.status)) : 'Draft';
 
 	$: ageValues = event?.age_distribution
 		? [
