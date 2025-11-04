@@ -38,7 +38,7 @@
 		representative: string;
 		eventDate: number;
 		analysisDate: number;
-		status: 'In Progress' | 'Finished' | 'Draft' | 'Overdue';
+		status: 'In Progress' | 'Finished' | 'Uploading' | 'Failed';
 		isFavorite: boolean;
 		[key: string]: string | number | boolean;
 	}
@@ -84,7 +84,7 @@
 	});
 
 	// Function to map database status to UI status
-	function mapStatus(dbStatus: string): 'In Progress' | 'Finished' | 'Draft' | 'Overdue' {
+	function mapStatus(dbStatus: string): 'In Progress' | 'Finished' | 'Uploading' | 'Failed' {
 		switch (dbStatus.toLowerCase()) {
 			case 'completed':
 			case 'finished':
@@ -93,12 +93,12 @@
 			case 'in_progress':
 			case 'progress':
 				return 'In Progress';
-			case 'draft':
-				return 'Draft';
-			case 'overdue':
-				return 'Overdue';
+			case 'uploading':
+				return 'Uploading';
+			case 'failed':
+				return 'Failed';
 			default:
-				return 'Draft'; // Default fallback
+				return 'Uploading';
 		}
 	}
 
@@ -128,9 +128,10 @@
 
 	const tabs: TableTab[] = [
 		{ label: 'All', value: 'all' },
-		{ label: 'Finished', value: 'finished' },
+		{ label: 'Uploading', value: 'uploading' },
 		{ label: 'In Progress', value: 'in-progress' },
-		{ label: 'Overdue', value: 'overdue' }
+		{ label: 'Finished', value: 'finished' },
+		{ label: 'Failed', value: 'failed' }
 	];
 
 	let activeTab = 'all';
@@ -189,8 +190,10 @@
 				return events.filter((e) => e.status === 'Finished');
 			case 'in-progress':
 				return events.filter((e) => e.status === 'In Progress');
-			case 'overdue':
-				return events.filter((e) => e.status === 'Overdue');
+			case 'uploading':
+				return events.filter((e) => e.status === 'Uploading');
+			case 'failed':
+				return events.filter((e) => e.status === 'Failed');
 			default:
 				return events;
 		}

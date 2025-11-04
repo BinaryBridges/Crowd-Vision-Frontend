@@ -37,6 +37,8 @@
 		"vite": "^7.0.4"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.922.0",
+		"@aws-sdk/s3-request-presigner": "^3.922.0",
 		"convex": "^1.27.3",
 		"convex-svelte": "^0.0.11"
 	}

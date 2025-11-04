@@ -1,5 +1,6 @@
-import { mutation, query } from './_generated/server';
+import { mutation, query, action } from './_generated/server';
 import { v } from 'convex/values';
+import { api } from './_generated/api';
 import {
 	ageDistributionValidator,
 	eventAgeSummaryValidator,
@@ -113,12 +114,22 @@ export const create = mutation({
 		{ db },
 		{ name, image, client, status, userId, description, start_date, end_date, has_paid }
 	) => {
+		const ALLOWED_STATUSES = new Set(['Uploading', 'In Progress', 'Finished', 'Failed']);
+		const validateStatus = (s: string) => {
+			if (!ALLOWED_STATUSES.has(s)) {
+				throw new Error(
+					`Invalid status '${s}'. Allowed: Uploading, In Progress, Finished, Failed.`
+				);
+			}
+			return s as 'Uploading' | 'In Progress' | 'Finished' | 'Failed';
+		};
+
 		// Create event with minimal data, setting defaults for analysis fields
 		const eventId = await db.insert('events', {
 			name,
 			image,
 			client,
-			status,
+			status: validateStatus(status),
 			favourite: false,
 			price: 0,
 			completion_time: Date.now(),
@@ -211,11 +222,67 @@ export const addToUser = mutation({
 export const updateStatus = mutation({
 	args: {
 		eventId: v.id('events'),
-		status: v.string()
+		status: v.string(),
+		userId: v.optional(v.id('users'))
 	},
 	handler: async ({ db }, { eventId, status }) => {
+		const ALLOWED_STATUSES = new Set(['Uploading', 'In Progress', 'Finished', 'Failed']);
+		if (!ALLOWED_STATUSES.has(status)) {
+			throw new Error(
+				`Invalid status '${status}'. Allowed: Uploading, In Progress, Finished, Failed.`
+			);
+		}
 		await db.patch(eventId, { status });
 		return eventId;
+	}
+});
+
+// Action to run after all uploads complete: update status and write S3 marker
+export const uploadsComplete = action({
+	args: {
+		eventId: v.id('events'),
+		userId: v.optional(v.id('users'))
+	},
+	handler: async ({ runMutation }, { eventId, userId }) => {
+		// First, mark the event as In Progress
+		await runMutation(api.events.updateStatus, { eventId, status: 'In Progress' });
+
+		// Then write the marker into S3 (Node/action environment allowed to call AWS)
+		const { AWS_REGION, AWS_S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY } =
+			process.env as Record<string, string | undefined>;
+
+		if (!AWS_REGION || !AWS_S3_BUCKET) return { eventId, wrote: false };
+
+		const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+		const s3 = new S3Client({
+			region: AWS_REGION,
+			credentials:
+				AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY
+					? { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY }
+					: undefined
+		});
+
+		const markerKeyBase = userId
+			? String(userId) + '/' + String(eventId)
+			: 'events/' + String(eventId);
+		const markerKey = markerKeyBase + '/signals/uploads_complete.json';
+		const body = JSON.stringify({
+			eventId,
+			userId: userId ?? null,
+			timestamp: Date.now(),
+			status: 'In Progress'
+		});
+
+		await s3.send(
+			new PutObjectCommand({
+				Bucket: AWS_S3_BUCKET,
+				Key: markerKey,
+				Body: body,
+				ContentType: 'application/json'
+			})
+		);
+
+		return { eventId, wrote: true, key: markerKey };
 	}
 });
 

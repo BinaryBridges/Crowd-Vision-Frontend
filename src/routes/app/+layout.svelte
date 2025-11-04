@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
+	import UploadTray from '$lib/components/upload/UploadTray.svelte';
 </script>
 
 <div class="flex h-dvh overflow-hidden bg-[var(--color-grey-25)]">
@@ -14,6 +15,7 @@
 				<slot />
 			</div>
 		</div>
+		<UploadTray />
 	</main>
 </div>
 

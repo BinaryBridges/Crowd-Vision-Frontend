@@ -1,3 +1,4 @@
 {
-  "functions": "src/convex/"
+	"functions": "src/convex/",
+	"http": "src/convex/http.ts"
 }
