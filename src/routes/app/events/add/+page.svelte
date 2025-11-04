@@ -62,6 +62,10 @@
 	// Drag & drop state (video area)
 	// removed unused drag state
 
+	// Clear field errors when values become valid (matches datetime inputs behavior)
+	$: if (titleError && title.trim()) titleError = undefined;
+	$: if (clientError && clientId) clientError = undefined;
+
 	// Clients for dropdown
 	type Option = { label: string; value: string };
 	let clientOptions: Option[] = [];
@@ -100,10 +104,10 @@
 				clientError = 'Please select a client.';
 			}
 			if (!startDate) {
-				startDateError = 'Please select a start date.';
+				startDateError = 'Please select a start date and time.';
 			}
 			if (!endDate) {
-				endDateError = 'Please select an end date.';
+				endDateError = 'Please select an end date and time.';
 			}
 			if (descError) descError = undefined;
 			// Require at least one video selected
@@ -338,29 +342,36 @@
 							label="Client"
 							bind:value={clientId}
 							options={clientOptions}
+							onChange={() => (clientError = undefined)}
 							error={clientError}
 							stacked
 							full
 							placeholder="Select name…"
 						/>
 					</div>
-					<div class="flex flex-col space-y-[6px]">
-						<label class="text-[14px] font-medium text-[var(--color-black-400)]" for="start"
-							>Start Date</label
+					<div class="flex flex-col">
+						<label
+							class="mb-[6px] text-[14px] leading-none font-medium text-[var(--color-black-400)]"
+							for="start">Start Date & Time</label
 						>
 						<div
-							class="rounded-lg border px-3 py-[10px] focus-within:ring-2 focus-within:ring-[var(--color-black-100)] focus-within:ring-offset-1 {startDateError
+							class="flex h-[34px] items-center rounded-lg border px-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--color-black-100)] focus-within:ring-offset-1 {startDateError
 								? 'border-[var(--color-red-500)] bg-[var(--color-red-50)]'
-								: 'border-[var(--color-black-50)] bg-[var(--color-white)]'}"
+								: 'border-[var(--color-black-50)] bg-[var(--color-white)] hover:border-[var(--color-black-100)]'}"
 						>
 							<input
 								id="start"
-								type="date"
+								type="datetime-local"
 								bind:value={startDate}
+								step="60"
 								required
 								aria-invalid={!!startDateError}
 								aria-describedby={startDateError ? 'start-error' : undefined}
-								class="w-full border-0 bg-transparent text-[14px] text-[var(--color-black-600)] outline-none focus:ring-0"
+								class={`w-full border-0 bg-transparent text-[14px] outline-none focus:ring-0 ${
+									startDate
+										? 'font-medium text-[var(--color-black-600)]'
+										: 'font-normal text-[var(--color-black-300)]'
+								}`}
 								on:input={() => (startDateError = undefined)}
 							/>
 						</div>
@@ -375,23 +386,30 @@
 							{/if}
 						</div>
 					</div>
-					<div class="flex flex-col space-y-[6px]">
-						<label class="text-[14px] font-medium text-[var(--color-black-400)]" for="end"
-							>End Date</label
+					<div class="flex flex-col">
+						<label
+							class="mb-[6px] text-[14px] leading-none font-medium text-[var(--color-black-400)]"
+							for="end">End Date & Time</label
 						>
 						<div
-							class="rounded-lg border px-3 py-[10px] focus-within:ring-2 focus-within:ring-[var(--color-black-100)] focus-within:ring-offset-1 {endDateError
+							class="flex h-[34px] items-center rounded-lg border px-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--color-black-100)] focus-within:ring-offset-1 {endDateError
 								? 'border-[var(--color-red-500)] bg-[var(--color-red-50)]'
-								: 'border-[var(--color-black-50)] bg-[var(--color-white)]'}"
+								: 'border-[var(--color-black-50)] bg-[var(--color-white)] hover:border-[var(--color-black-100)]'}"
 						>
 							<input
 								id="end"
-								type="date"
+								type="datetime-local"
 								bind:value={endDate}
+								min={startDate || undefined}
+								step="60"
 								required
 								aria-invalid={!!endDateError}
 								aria-describedby={endDateError ? 'end-error' : undefined}
-								class="w-full border-0 bg-transparent text-[14px] text-[var(--color-black-600)] outline-none focus:ring-0"
+								class={`w-full border-0 bg-transparent text-[14px] outline-none focus:ring-0 ${
+									endDate
+										? 'font-medium text-[var(--color-black-600)]'
+										: 'font-normal text-[var(--color-black-300)]'
+								}`}
 								on:input={() => (endDateError = undefined)}
 							/>
 						</div>
