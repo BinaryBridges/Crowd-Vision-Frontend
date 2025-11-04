@@ -5,7 +5,6 @@
 	import NavItem from './NavItem.svelte';
 	import CollapseGroup from './CollapseGroup.svelte';
 	import UploadIcon from '$lib/icons/UploadIcon.svelte';
-	import ClientsIcon from '$lib/icons/ClientsIcon.svelte';
 	import SignOutIcon from '$lib/icons/SignOutIcon.svelte';
 	import SettingsIcon from '$lib/icons/SettingsIcon.svelte';
 	import { onMount } from 'svelte';
@@ -65,11 +64,14 @@
 		style="border-right-color: var(--color-black-50);"
 	>
 		<div class="pt-3">
-			<div
-				class="h-9 w-9 rounded-full border bg-[var(--color-grey-50)]"
+			<img
+				src="https://www.profilebakery.com/wp-content/uploads/2023/04/LINKEDIN-Profile-Picture-AI.jpg"
+				alt="Profile"
+				class="h-9 w-9 rounded-full border object-cover"
 				style="border-color: var(--color-black-50);"
-				aria-hidden="true"
-			></div>
+				loading="eager"
+				decoding="async"
+			/>
 		</div>
 		<div class="space-y-2 pb-3"></div>
 	</div>
@@ -85,7 +87,7 @@
 
 		<div class="px-4 pb-2">
 			<div
-				class="tracking-normal uppercase"
+				class="tracking-normal"
 				style="color: var(--color-black-300); font-size: 14px; font-weight: 500;"
 			>
 				Main Menu
@@ -116,7 +118,6 @@
 				href="/app/events/add"
 				selected={page.url.pathname.includes('/events/add')}
 			/>
-			<NavItem label="Clients" Icon={ClientsIcon} href="/app/clients" />
 
 			<div class="pt-2">
 				<div class="mb-2" style="color: var(--color-black-300); font-size: 14px; font-weight: 500;">
@@ -144,7 +145,7 @@
 		<div class="border-t px-4 py-4" style="border-color: var(--color-black-50);">
 			<div class="space-y-1">
 				<NavItem label="Sign out" Icon={SignOutIcon} />
-				<NavItem label="Settings" Icon={SettingsIcon} href="/app/settings" />
+				<NavItem label="Settings" Icon={SettingsIcon} />
 			</div>
 		</div>
 	</div>

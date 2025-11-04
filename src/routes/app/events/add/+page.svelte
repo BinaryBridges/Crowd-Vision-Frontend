@@ -144,7 +144,7 @@
 				name: title,
 				image,
 				client: clientId as Id<'clients'>,
-				status: 'draft',
+				status: 'Uploading',
 				userId: (PUBLIC_USER_ID as unknown as Id<'users'>) ?? undefined,
 				description,
 				start_date: startEpoch,
@@ -171,9 +171,9 @@
 					uploads,
 					(args) => convex.action(api.s3.completeMultipart, args),
 					async () => {
-						await convex.mutation(api.events.updateStatus, {
+						await convex.action(api.events.uploadsComplete, {
 							eventId: eventId as Id<'events'>,
-							status: 'In Progress'
+							userId: PUBLIC_USER_ID as unknown as Id<'users'>
 						});
 					}
 				);

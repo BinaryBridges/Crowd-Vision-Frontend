@@ -1,9 +1,9 @@
 <script context="module" lang="ts">
-	export type Status = 'In Progress' | 'Finished' | 'Draft' | 'Overdue';
+	export type Status = 'In Progress' | 'Finished' | 'Uploading' | 'Failed';
 </script>
 
 <script lang="ts">
-	const STATUSES = ['In Progress', 'Finished', 'Draft', 'Overdue'] as const;
+	const STATUSES = ['Uploading', 'In Progress', 'Finished', 'Failed'] as const;
 	const STATUS_SET = new Set<string>(STATUSES as readonly string[]);
 
 	const statusStyles: Record<Status, string> = {
@@ -11,9 +11,9 @@
 			'bg-[var(--color-orange-50)] text-[var(--color-orange-500)] border-[var(--color-orange-500)]',
 		Finished:
 			'bg-[var(--color-green-50)] text-[var(--color-green-600)] border-[var(--color-green-600)]',
-		Draft:
+		Uploading:
 			'bg-[var(--color-grey-50)] text-[var(--color-black-300)] border-[var(--color-black-300)]',
-		Overdue: 'bg-[var(--color-red-50)] text-[var(--color-red-500)] border-[var(--color-red-500)]'
+		Failed: 'bg-[var(--color-red-50)] text-[var(--color-red-500)] border-[var(--color-red-500)]'
 	};
 
 	type EventLike = { status: Status | (string & {}) };

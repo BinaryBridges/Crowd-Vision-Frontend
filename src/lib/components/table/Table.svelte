@@ -120,6 +120,7 @@
 			options={itemsPerPageOptions}
 			label="Show"
 			id="items-per-page"
+			stacked={false}
 			onChange={(v) => handleItemsPerPageChange(typeof v === 'string' ? Number(v) : v)}
 		/>
 	</div>

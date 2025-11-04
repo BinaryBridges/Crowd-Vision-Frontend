@@ -15,7 +15,7 @@
 	import type { Id } from '$convex/_generated/dataModel';
 	import type { Doc } from '$convex/_generated/dataModel';
 
-	function mapStatus(dbStatus: string): 'In Progress' | 'Finished' | 'Draft' | 'Overdue' {
+	function mapStatus(dbStatus: string): 'In Progress' | 'Finished' | 'Uploading' | 'Failed' {
 		switch (dbStatus.toLowerCase()) {
 			case 'completed':
 			case 'finished':
@@ -24,12 +24,12 @@
 			case 'in_progress':
 			case 'progress':
 				return 'In Progress';
-			case 'draft':
-				return 'Draft';
-			case 'overdue':
-				return 'Overdue';
+			case 'uploading':
+				return 'Uploading';
+			case 'failed':
+				return 'Failed';
 			default:
-				return 'Draft';
+				return 'Uploading';
 		}
 	}
 
@@ -40,6 +40,14 @@
 	let isLoading = true;
 	let error: string | null = null;
 	let lastLoadedId: string | null = null;
+
+	// Image handling for header (fallback to solid color)
+	let imageError = false;
+	$: isImageUrl = !!(
+		event?.image &&
+		(event.image.startsWith('http') || event.image.startsWith('data:'))
+	);
+	const FALLBACK_COLOR = '#E0F2F1';
 
 	const ageLabels = [
 		'0-10',
@@ -56,6 +64,7 @@
 
 	async function loadEventById(id: string) {
 		isLoading = true;
+		imageError = false;
 		error = null;
 		try {
 			if (!convexClient) throw new Error('Convex client not available');
@@ -98,7 +107,7 @@
 	});
 
 	// Top-level reactive declarations
-	$: statusLabel = event ? mapStatus(String(event.status)) : 'Draft';
+	$: statusLabel = event ? mapStatus(String(event.status)) : 'Uploading';
 
 	$: ageValues = event?.age_distribution
 		? [
@@ -172,9 +181,19 @@
 		>
 			<div class="flex flex-col gap-2">
 				<div
-					class="flex h-18 w-18 items-center justify-center rounded-[12px] bg-[var(--color-white)] shadow-[0_4px_12px_rgba(0,0,0,0.04)]"
+					class="flex h-18 w-18 items-center justify-center overflow-hidden rounded-[12px] shadow-[0_4px_12px_rgba(0,0,0,0.04)]"
+					style="background-color: {FALLBACK_COLOR}"
 				>
-					<img src={event?.image} alt="" class="h-15 w-15 shrink-0 object-contain" />
+					{#if isImageUrl && !imageError}
+						<img
+							src={event?.image}
+							alt={event?.name || 'Event image'}
+							class="h-full w-full object-cover"
+							on:error={() => {
+								imageError = true;
+							}}
+						/>
+					{/if}
 				</div>
 				<h1 class="text-[24px] font-semibold text-[var(--color-black-600)]">{event?.name}</h1>
 				<div class="flex flex-wrap items-center gap-3">
@@ -275,21 +294,23 @@
 
 					<!-- Distributions -->
 					<section class="mt-6 grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
-						<BarChart
-							title="Age Distribution"
-							labels={ageLabels}
-							values={ageValues}
-							colorClass="bg-[var(--color-purple-500)]"
-						/>
+						<div class="flex flex-col">
+							<BarChart
+								title="Age Distribution"
+								labels={ageLabels}
+								values={ageValues}
+								colorClass="bg-[var(--color-purple-500)]"
+							/>
+						</div>
 
 						<div class="flex w-full flex-col gap-3">
 							<h3 class="text-[16px] font-semibold text-[var(--color-black-600)]">
 								Gender Breakdown
 							</h3>
 							<div
-								class="w-full rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+								class="flex h-full w-full flex-col rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
 							>
-								<div class="flex flex-col gap-4">
+								<div class="flex flex-1 flex-col justify-center gap-4">
 									<div
 										class="flex items-center justify-between text-[14px] text-[var(--color-black-400)]"
 									>

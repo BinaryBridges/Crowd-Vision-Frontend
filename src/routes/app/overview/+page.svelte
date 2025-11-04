@@ -40,7 +40,7 @@
 
 	function mapStatus(
 		dbStatus: string | undefined
-	): 'In Progress' | 'Finished' | 'Draft' | 'Overdue' {
+	): 'In Progress' | 'Finished' | 'Uploading' | 'Failed' {
 		switch ((dbStatus || '').toLowerCase()) {
 			case 'completed':
 			case 'finished':
@@ -49,10 +49,12 @@
 			case 'in_progress':
 			case 'progress':
 				return 'In Progress';
-			case 'overdue':
-				return 'Overdue';
+			case 'uploading':
+				return 'Uploading';
+			case 'failed':
+				return 'Failed';
 			default:
-				return 'Draft';
+				return 'Uploading';
 		}
 	}
 
@@ -106,14 +108,14 @@
 		: Array(10).fill(0);
 
 	$: statusCounts = (() => {
-		const init = { finished: 0, inProgress: 0, draft: 0, overdue: 0 };
+		const init = { finished: 0, inProgress: 0, uploading: 0, failed: 0 };
 		if (!user?.events?.length) return init;
 		for (const e of user.events) {
 			const status = mapStatus(e.status);
 			if (status === 'Finished') init.finished++;
 			else if (status === 'In Progress') init.inProgress++;
-			else if (status === 'Overdue') init.overdue++;
-			else init.draft++;
+			else if (status === 'Failed') init.failed++;
+			else init.uploading++;
 		}
 		return init;
 	})();
@@ -238,17 +240,17 @@
 					<div
 						class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
 					>
-						<div class="text-[12px] text-[var(--color-black-300)]">Draft</div>
+						<div class="text-[12px] text-[var(--color-black-300)]">Uploading</div>
 						<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
-							{statusCounts.draft}
+							{statusCounts.uploading}
 						</div>
 					</div>
 					<div
 						class="rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
 					>
-						<div class="text-[12px] text-[var(--color-black-300)]">Overdue</div>
+						<div class="text-[12px] text-[var(--color-black-300)]">Failed</div>
 						<div class="text-[24px] font-semibold text-[var(--color-black-600)]">
-							{statusCounts.overdue}
+							{statusCounts.failed}
 						</div>
 					</div>
 				</section>
@@ -291,21 +293,23 @@
 
 				<!-- Charts / breakdowns -->
 				<section class="mt-6 grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
-					<BarChart
-						title="Age Distribution"
-						labels={ageLabels}
-						values={ageValues}
-						colorClass="bg-[var(--color-purple-500)]"
-					/>
+					<div class="flex flex-col">
+						<BarChart
+							title="Age Distribution"
+							labels={ageLabels}
+							values={ageValues}
+							colorClass="bg-[var(--color-purple-500)]"
+						/>
+					</div>
 
 					<div class="flex w-full flex-col gap-3">
 						<h3 class="text-[16px] font-semibold text-[var(--color-black-600)]">
 							Gender Breakdown
 						</h3>
 						<div
-							class="w-full rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
+							class="flex h-full w-full flex-col rounded-[var(--radius-20)] border border-[var(--border-gradient-gray-vertical)] bg-[var(--color-white)] p-4 shadow-[0_8px_20px_0_rgba(77,84,100,0.04)]"
 						>
-							<div class="flex flex-col gap-4">
+							<div class="flex flex-1 flex-col justify-center gap-4">
 								<div
 									class="flex items-center justify-between text-[14px] text-[var(--color-black-400)]"
 								>
