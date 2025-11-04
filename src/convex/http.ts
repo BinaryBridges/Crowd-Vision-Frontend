@@ -1,4 +1,4 @@
-﻿import { httpRouter } from 'convex/server';
+import { httpRouter } from 'convex/server';
 import { httpAction } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import { api } from './_generated/api';
