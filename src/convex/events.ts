@@ -241,9 +241,10 @@ export const updateStatus = mutation({
 export const uploadsComplete = action({
 	args: {
 		eventId: v.id('events'),
-		userId: v.optional(v.id('users'))
+		userId: v.optional(v.id('users')),
+		convexBaseUrl: v.optional(v.string())
 	},
-	handler: async ({ runMutation }, { eventId, userId }) => {
+	handler: async ({ runMutation }, { eventId, userId, convexBaseUrl }) => {
 		// First, mark the event as In Progress
 		await runMutation(api.events.updateStatus, { eventId, status: 'In Progress' });
 
@@ -281,6 +282,33 @@ export const uploadsComplete = action({
 				ContentType: 'application/json'
 			})
 		);
+
+		// After uploads complete, request remote cluster startup
+		try {
+			const { PUBLIC_CONVEX_URL, PUBLIC_USER_ID } = process.env as Record<
+				string,
+				string | undefined
+			>;
+			const rawBase = convexBaseUrl || PUBLIC_CONVEX_URL;
+			if (!rawBase) throw new Error('Missing PUBLIC_CONVEX_URL env');
+			const baseUrl = rawBase.endsWith('/http') ? rawBase : `${rawBase}/http`;
+			const payload = {
+				cluster_name: String(eventId),
+				convex_base_url: baseUrl,
+				convex_event_id: String(eventId),
+				convex_user_id: String(userId || PUBLIC_USER_ID || ''),
+				convex_event_price: '0.0',
+				s3_bucket_name: AWS_S3_BUCKET,
+				s3_region: AWS_REGION
+			};
+			await fetch('https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+		} catch (err) {
+			console.error('Cluster startup failed:', err);
+		}
 
 		return { eventId, wrote: true, key: markerKey };
 	}
