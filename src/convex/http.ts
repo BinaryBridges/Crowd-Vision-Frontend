@@ -127,6 +127,26 @@ function assertArray(value: unknown, path: string): unknown[] {
 	return value;
 }
 
+async function killRemoteCluster(eventId: string) {
+	try {
+		const { AWS_S3_BUCKET, PUBLIC_USER_ID } = process.env as Record<string, string | undefined>;
+		if (!AWS_S3_BUCKET) throw new Error('Missing AWS_S3_BUCKET env');
+		const body = {
+			cluster_name: eventId,
+			s3_bucket_name: AWS_S3_BUCKET,
+			user_id: String(PUBLIC_USER_ID || ''),
+			event_id: eventId
+		};
+		await fetch('https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster', {
+			method: 'DELETE',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(body)
+		});
+	} catch (err) {
+		console.error('Cluster kill failed:', err);
+	}
+}
+
 function assertNumber(value: unknown, path: string): number {
 	if (typeof value !== 'number' || Number.isNaN(value)) {
 		throw new Error(`${path} must be a number`);
@@ -317,6 +337,13 @@ http.route({
 				eventId: assertString(payload.eventId, 'payload.eventId') as Id<'events'>,
 				status: assertString(payload.status, 'payload.status')
 			});
+			try {
+				if ((payload as Record<string, unknown>).status === 'Finished') {
+					await killRemoteCluster(String(eventId));
+				}
+			} catch (err) {
+				console.error('Update-status kill attempt failed:', err);
+			}
 			return jsonResponse({ eventId });
 		} catch (error) {
 			return jsonResponse({ error: asErrorMessage(error) }, 400);
@@ -328,10 +355,23 @@ http.route({
 http.route({
 	path: '/ingest/events',
 	method: 'POST',
-	handler: httpAction(async ({ runMutation }, request) => {
+	handler: httpAction(async ({ runMutation, runQuery }, request) => {
 		try {
 			const payload = parseEventPayload(await request.json());
 			const id = await runMutation(api.events.save, payload);
+			try {
+				if (payload.status === 'Finished') {
+					await killRemoteCluster(String(id));
+				} else {
+					// Double check latest status from DB
+					const ev = await runQuery(api.events.getById, { id: id as Id<'events'> });
+					if (ev && ev.status === 'Finished') {
+						await killRemoteCluster(String(id));
+					}
+				}
+			} catch (err) {
+				console.error('Post-ingest kill attempt failed:', err);
+			}
 			return jsonResponse({ id });
 		} catch (error) {
 			return jsonResponse({ error: asErrorMessage(error) }, 400);
@@ -343,7 +383,7 @@ http.route({
 http.route({
 	path: '/events/update-analysis',
 	method: 'POST',
-	handler: httpAction(async ({ runMutation }, request) => {
+	handler: httpAction(async ({ runMutation, runQuery }, request) => {
 		try {
 			const payload = assertObject(await request.json(), 'payload');
 			const eventId = await runMutation(api.events.updateAnalysisDataWithUser, {
@@ -371,6 +411,20 @@ http.route({
 						? assertBoolean(payload.favourite, 'payload.favourite')
 						: undefined
 			});
+			try {
+				const status = (payload as Record<string, unknown>).status;
+				if (status === 'Finished') {
+					await killRemoteCluster(String(eventId));
+				} else {
+					// Read the updated event from DB to see if it is finished now
+					const ev = await runQuery(api.events.getById, { id: eventId as Id<'events'> });
+					if (ev && ev.status === 'Finished') {
+						await killRemoteCluster(String(eventId));
+					}
+				}
+			} catch (err) {
+				console.error('Update-analysis kill attempt failed:', err);
+			}
 			return jsonResponse({ eventId });
 		} catch (error) {
 			return jsonResponse({ error: asErrorMessage(error) }, 400);

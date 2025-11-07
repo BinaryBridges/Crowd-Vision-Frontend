@@ -13,7 +13,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { PUBLIC_USER_ID } from '$env/static/public';
+	import { PUBLIC_USER_ID, PUBLIC_CONVEX_URL } from '$env/static/public';
 	import { queueUploads } from '$lib/upload/uploadStore';
 
 	const segments: Crumb[] = [{ label: 'Upload', Icon: UploadIcon }];
@@ -177,7 +177,8 @@
 					async () => {
 						await convex.action(api.events.uploadsComplete, {
 							eventId: eventId as Id<'events'>,
-							userId: PUBLIC_USER_ID as unknown as Id<'users'>
+							userId: PUBLIC_USER_ID as unknown as Id<'users'>,
+							convexBaseUrl: PUBLIC_CONVEX_URL
 						});
 					}
 				);
