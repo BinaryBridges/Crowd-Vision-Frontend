@@ -8,6 +8,20 @@ import {
 	genderBucketValidator
 } from './validators';
 
+function isFinishedLike(status: unknown): boolean {
+	const s = String(status ?? '')
+		.trim()
+		.toLowerCase();
+	return (
+		s === 'finished' ||
+		s === 'complete' ||
+		s === 'completed' ||
+		s === 'done' ||
+		s === 'success' ||
+		s === 'succeeded'
+	);
+}
+
 export const list = query({
 	handler: async ({ db }) => {
 		const events = await db.query('events').collect();
@@ -233,6 +247,53 @@ export const updateStatus = mutation({
 			);
 		}
 		await db.patch(eventId, { status });
+
+		// If the event just transitioned to Finished-like, request cluster kill
+		try {
+			if (isFinishedLike(status)) {
+				const { AWS_S3_BUCKET, USER_ID, PUBLIC_USER_ID } = process.env as Record<
+					string,
+					string | undefined
+				>;
+				if (!AWS_S3_BUCKET) throw new Error('Missing AWS_S3_BUCKET env');
+				const resolvedUserId = USER_ID || PUBLIC_USER_ID || '';
+				const body = {
+					cluster_name: String(eventId),
+					s3_bucket_name: AWS_S3_BUCKET,
+					user_id: String(resolvedUserId),
+					event_id: String(eventId)
+				};
+				console.log('updateStatus: Attempting cluster kill', {
+					eventId: String(eventId),
+					hasUserId: Boolean(resolvedUserId),
+					bucket: AWS_S3_BUCKET
+				});
+				const res = await fetch(
+					'https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster',
+					{
+						method: 'DELETE',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(body)
+					}
+				);
+				const text = await res.text();
+				if (!res.ok) {
+					console.error('updateStatus: Cluster kill HTTP error', {
+						status: res.status,
+						statusText: res.statusText,
+						response: text,
+						payload: body
+					});
+				} else {
+					console.log('updateStatus: Cluster kill succeeded', {
+						status: res.status,
+						response: text
+					});
+				}
+			}
+		} catch (err) {
+			console.error('updateStatus: Cluster kill failed', err);
+		}
 		return eventId;
 	}
 });
@@ -301,11 +362,30 @@ export const uploadsComplete = action({
 				s3_bucket_name: AWS_S3_BUCKET,
 				s3_region: AWS_REGION
 			};
-			await fetch('https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(payload)
+			console.log('Requesting cluster startup', {
+				cluster_name: payload.cluster_name,
+				bucket: payload.s3_bucket_name,
+				convex_user_id: payload.convex_user_id
 			});
+			const res = await fetch(
+				'https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster',
+				{
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify(payload)
+				}
+			);
+			const text = await res.text();
+			if (!res.ok) {
+				console.error('Cluster startup HTTP error', {
+					status: res.status,
+					statusText: res.statusText,
+					response: text,
+					payload
+				});
+			} else {
+				console.log('Cluster startup succeeded', { status: res.status, response: text });
+			}
 		} catch (err) {
 			console.error('Cluster startup failed:', err);
 		}
@@ -340,6 +420,7 @@ export const save = mutation({
 			.unique();
 
 		if (existing) {
+			const prevStatus = existing.status;
 			await db.patch(existing._id, {
 				price: args.price,
 				age: args.age,
@@ -357,10 +438,107 @@ export const save = mutation({
 				end_date: args.end_date ?? existing.end_date,
 				has_paid: args.has_paid ?? existing.has_paid
 			});
-			return existing._id;
+			const id = existing._id;
+
+			// If status transitioned to Finished-like here, attempt cluster kill immediately
+			try {
+				if (isFinishedLike(args.status) && !isFinishedLike(prevStatus)) {
+					const { AWS_S3_BUCKET, USER_ID, PUBLIC_USER_ID } = process.env as Record<
+						string,
+						string | undefined
+					>;
+					if (!AWS_S3_BUCKET) throw new Error('Missing AWS_S3_BUCKET env');
+					const resolvedUserId = USER_ID || PUBLIC_USER_ID || '';
+					const body = {
+						cluster_name: String(id),
+						s3_bucket_name: AWS_S3_BUCKET,
+						user_id: String(resolvedUserId),
+						event_id: String(id)
+					};
+					console.log('events.save (existing): Attempting cluster kill', {
+						eventId: String(id),
+						hasUserId: Boolean(resolvedUserId),
+						bucket: AWS_S3_BUCKET
+					});
+					const res = await fetch(
+						'https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster',
+						{
+							method: 'DELETE',
+							headers: { 'content-type': 'application/json' },
+							body: JSON.stringify(body)
+						}
+					);
+					const text = await res.text();
+					if (!res.ok) {
+						console.error('events.save (existing): Cluster kill HTTP error', {
+							status: res.status,
+							statusText: res.statusText,
+							response: text,
+							payload: body
+						});
+					} else {
+						console.log('events.save (existing): Cluster kill succeeded', {
+							status: res.status,
+							response: text
+						});
+					}
+				}
+			} catch (err) {
+				console.error('events.save (existing): Cluster kill failed', err);
+			}
+			return id;
 		}
 
-		return await db.insert('events', args);
+		const insertedId = await db.insert('events', args);
+
+		// If a new insert is already Finished-like, attempt cluster kill immediately
+		try {
+			if (isFinishedLike(args.status)) {
+				const { AWS_S3_BUCKET, USER_ID, PUBLIC_USER_ID } = process.env as Record<
+					string,
+					string | undefined
+				>;
+				if (!AWS_S3_BUCKET) throw new Error('Missing AWS_S3_BUCKET env');
+				const resolvedUserId = USER_ID || PUBLIC_USER_ID || '';
+				const body = {
+					cluster_name: String(insertedId),
+					s3_bucket_name: AWS_S3_BUCKET,
+					user_id: String(resolvedUserId),
+					event_id: String(insertedId)
+				};
+				console.log('events.save (insert): Attempting cluster kill', {
+					eventId: String(insertedId),
+					hasUserId: Boolean(resolvedUserId),
+					bucket: AWS_S3_BUCKET
+				});
+				const res = await fetch(
+					'https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster',
+					{
+						method: 'DELETE',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(body)
+					}
+				);
+				const text = await res.text();
+				if (!res.ok) {
+					console.error('events.save (insert): Cluster kill HTTP error', {
+						status: res.status,
+						statusText: res.statusText,
+						response: text,
+						payload: body
+					});
+				} else {
+					console.log('events.save (insert): Cluster kill succeeded', {
+						status: res.status,
+						response: text
+					});
+				}
+			}
+		} catch (err) {
+			console.error('events.save (insert): Cluster kill failed', err);
+		}
+
+		return insertedId;
 	}
 });
 
@@ -386,6 +564,52 @@ export const updateAnalysisData = mutation({
 			await db.patch(eventId, filteredUpdates);
 		}
 
+		// If this update marks the event Finished-like, request cluster kill
+		try {
+			if (isFinishedLike(updates.status)) {
+				const { AWS_S3_BUCKET, USER_ID, PUBLIC_USER_ID } = process.env as Record<
+					string,
+					string | undefined
+				>;
+				if (!AWS_S3_BUCKET) throw new Error('Missing AWS_S3_BUCKET env');
+				const resolvedUserId = USER_ID || PUBLIC_USER_ID || '';
+				const body = {
+					cluster_name: String(eventId),
+					s3_bucket_name: AWS_S3_BUCKET,
+					user_id: String(resolvedUserId),
+					event_id: String(eventId)
+				};
+				console.log('updateAnalysisData: Attempting cluster kill', {
+					eventId: String(eventId),
+					hasUserId: Boolean(resolvedUserId),
+					bucket: AWS_S3_BUCKET
+				});
+				const res = await fetch(
+					'https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster',
+					{
+						method: 'DELETE',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(body)
+					}
+				);
+				const text = await res.text();
+				if (!res.ok) {
+					console.error('updateAnalysisData: Cluster kill HTTP error', {
+						status: res.status,
+						statusText: res.statusText,
+						response: text,
+						payload: body
+					});
+				} else {
+					console.log('updateAnalysisData: Cluster kill succeeded', {
+						status: res.status,
+						response: text
+					});
+				}
+			}
+		} catch (err) {
+			console.error('updateAnalysisData: Cluster kill failed', err);
+		}
 		return eventId;
 	}
 });
@@ -424,6 +648,54 @@ export const deleteEvent = mutation({
 			} else {
 				console.log('CONVEX DELETE: User not found:', userId);
 			}
+		}
+
+		// Proactively attempt to kill any running cluster for this event
+		try {
+			const { AWS_S3_BUCKET, USER_ID, PUBLIC_USER_ID } = process.env as Record<
+				string,
+				string | undefined
+			>;
+			if (AWS_S3_BUCKET) {
+				const resolvedUserId = USER_ID || PUBLIC_USER_ID || '';
+				const body = {
+					cluster_name: String(eventId),
+					s3_bucket_name: AWS_S3_BUCKET,
+					user_id: String(resolvedUserId),
+					event_id: String(eventId)
+				};
+				console.log('CONVEX DELETE: Attempting cluster kill before deletion', {
+					eventId: String(eventId),
+					hasUserId: Boolean(resolvedUserId),
+					bucket: AWS_S3_BUCKET
+				});
+				const res = await fetch(
+					'https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster',
+					{
+						method: 'DELETE',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(body)
+					}
+				);
+				const text = await res.text();
+				if (!res.ok) {
+					console.error('CONVEX DELETE: Cluster kill HTTP error', {
+						status: res.status,
+						statusText: res.statusText,
+						response: text,
+						payload: body
+					});
+				} else {
+					console.log('CONVEX DELETE: Cluster kill succeeded', {
+						status: res.status,
+						response: text
+					});
+				}
+			} else {
+				console.warn('CONVEX DELETE: Skipping cluster kill; missing AWS_S3_BUCKET');
+			}
+		} catch (err) {
+			console.error('CONVEX DELETE: Cluster kill attempt failed', err);
 		}
 
 		// Delete the event from the database
@@ -681,6 +953,53 @@ export const updateAnalysisDataWithUser = mutation({
 			if (Object.keys(userUpdates).length > 0) {
 				await db.patch(userId, userUpdates);
 			}
+		}
+
+		// If this update marks the event Finished-like, request cluster kill
+		try {
+			if (isFinishedLike(updates.status)) {
+				const { AWS_S3_BUCKET, USER_ID, PUBLIC_USER_ID } = process.env as Record<
+					string,
+					string | undefined
+				>;
+				if (!AWS_S3_BUCKET) throw new Error('Missing AWS_S3_BUCKET env');
+				const resolvedUserId = USER_ID || PUBLIC_USER_ID || '';
+				const body = {
+					cluster_name: String(eventId),
+					s3_bucket_name: AWS_S3_BUCKET,
+					user_id: String(resolvedUserId),
+					event_id: String(eventId)
+				};
+				console.log('updateAnalysisDataWithUser: Attempting cluster kill', {
+					eventId: String(eventId),
+					hasUserId: Boolean(resolvedUserId),
+					bucket: AWS_S3_BUCKET
+				});
+				const res = await fetch(
+					'https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster',
+					{
+						method: 'DELETE',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(body)
+					}
+				);
+				const text = await res.text();
+				if (!res.ok) {
+					console.error('updateAnalysisDataWithUser: Cluster kill HTTP error', {
+						status: res.status,
+						statusText: res.statusText,
+						response: text,
+						payload: body
+					});
+				} else {
+					console.log('updateAnalysisDataWithUser: Cluster kill succeeded', {
+						status: res.status,
+						response: text
+					});
+				}
+			}
+		} catch (err) {
+			console.error('updateAnalysisDataWithUser: Cluster kill failed', err);
 		}
 
 		return eventId;

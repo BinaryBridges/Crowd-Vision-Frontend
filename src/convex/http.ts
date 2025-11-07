@@ -113,6 +113,25 @@ const jsonResponse = (body: unknown, status = 200) =>
 const asErrorMessage = (error: unknown) =>
 	error instanceof Error ? error.message : 'Unknown error';
 
+function isFinishedLike(status: unknown): boolean {
+	const s = String(status ?? '')
+		.trim()
+		.toLowerCase();
+	return (
+		s === 'finished' ||
+		s === 'complete' ||
+		s === 'completed' ||
+		s === 'done' ||
+		s === 'success' ||
+		s === 'succeeded'
+	);
+}
+
+function readOptionalString(obj: Record<string, unknown>, key: string): string | undefined {
+	const v = obj[key];
+	return typeof v === 'string' ? v : undefined;
+}
+
 function assertObject(value: unknown, path: string): Record<string, unknown> {
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
 		throw new Error(`${path} must be an object`);
@@ -129,19 +148,44 @@ function assertArray(value: unknown, path: string): unknown[] {
 
 async function killRemoteCluster(eventId: string) {
 	try {
-		const { AWS_S3_BUCKET, PUBLIC_USER_ID } = process.env as Record<string, string | undefined>;
+		const { AWS_S3_BUCKET, USER_ID, PUBLIC_USER_ID } = process.env as Record<
+			string,
+			string | undefined
+		>;
 		if (!AWS_S3_BUCKET) throw new Error('Missing AWS_S3_BUCKET env');
+
+		const resolvedUserId = USER_ID || PUBLIC_USER_ID || '';
 		const body = {
 			cluster_name: eventId,
 			s3_bucket_name: AWS_S3_BUCKET,
-			user_id: String(PUBLIC_USER_ID || ''),
+			user_id: String(resolvedUserId),
 			event_id: eventId
 		};
-		await fetch('https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster', {
+
+		// Debug logging to trace payload and environment usage (no secrets)
+		console.log('Attempting cluster kill', {
+			eventId,
+			hasUserId: Boolean(resolvedUserId),
+			bucket: AWS_S3_BUCKET
+		});
+
+		const res = await fetch('https://rws3a4n9ld.execute-api.us-east-2.amazonaws.com/prod/cluster', {
 			method: 'DELETE',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(body)
 		});
+
+		const text = await res.text();
+		if (!res.ok) {
+			console.error('Cluster kill HTTP error', {
+				status: res.status,
+				statusText: res.statusText,
+				response: text,
+				payload: body
+			});
+		} else {
+			console.log('Cluster kill succeeded', { status: res.status, response: text });
+		}
 	} catch (err) {
 		console.error('Cluster kill failed:', err);
 	}
@@ -332,13 +376,16 @@ http.route({
 	method: 'POST',
 	handler: httpAction(async ({ runMutation }, request) => {
 		try {
+			console.log('HTTP /events/update-status: received');
 			const payload = assertObject(await request.json(), 'payload');
+			console.log('HTTP /events/update-status payload', payload);
 			const eventId = await runMutation(api.events.updateStatus, {
 				eventId: assertString(payload.eventId, 'payload.eventId') as Id<'events'>,
 				status: assertString(payload.status, 'payload.status')
 			});
 			try {
-				if ((payload as Record<string, unknown>).status === 'Finished') {
+				const incomingStatus = (payload as Record<string, unknown>).status;
+				if (isFinishedLike(incomingStatus)) {
 					await killRemoteCluster(String(eventId));
 				}
 			} catch (err) {
@@ -357,15 +404,17 @@ http.route({
 	method: 'POST',
 	handler: httpAction(async ({ runMutation, runQuery }, request) => {
 		try {
+			console.log('HTTP /ingest/events: received');
 			const payload = parseEventPayload(await request.json());
+			console.log('HTTP /ingest/events parsed payload status', payload.status);
 			const id = await runMutation(api.events.save, payload);
 			try {
-				if (payload.status === 'Finished') {
+				if (isFinishedLike(payload.status)) {
 					await killRemoteCluster(String(id));
 				} else {
 					// Double check latest status from DB
 					const ev = await runQuery(api.events.getById, { id: id as Id<'events'> });
-					if (ev && ev.status === 'Finished') {
+					if (ev && isFinishedLike(ev.status)) {
 						await killRemoteCluster(String(id));
 					}
 				}
@@ -385,7 +434,12 @@ http.route({
 	method: 'POST',
 	handler: httpAction(async ({ runMutation, runQuery }, request) => {
 		try {
+			console.log('HTTP /events/update-analysis: received');
 			const payload = assertObject(await request.json(), 'payload');
+			console.log(
+				'HTTP /events/update-analysis payload status',
+				readOptionalString(payload, 'status')
+			);
 			const eventId = await runMutation(api.events.updateAnalysisDataWithUser, {
 				eventId: assertString(payload.eventId, 'payload.eventId') as Id<'events'>,
 				userId: payload.userId
@@ -413,12 +467,12 @@ http.route({
 			});
 			try {
 				const status = (payload as Record<string, unknown>).status;
-				if (status === 'Finished') {
+				if (isFinishedLike(status)) {
 					await killRemoteCluster(String(eventId));
 				} else {
 					// Read the updated event from DB to see if it is finished now
 					const ev = await runQuery(api.events.getById, { id: eventId as Id<'events'> });
-					if (ev && ev.status === 'Finished') {
+					if (ev && isFinishedLike(ev.status)) {
 						await killRemoteCluster(String(eventId));
 					}
 				}
